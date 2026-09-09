@@ -66,6 +66,16 @@
     </dependencies>
 
     <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <!-- Los CSV de muestra de la raíz del repo también se usan en los tests (classpath:samples/...) -->
+            <testResource>
+                <directory>../samples</directory>
+                <targetPath>samples</targetPath>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

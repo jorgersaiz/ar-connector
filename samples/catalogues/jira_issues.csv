@@ -1,0 +1,6 @@
+jira_issue_id;description;sda_project_id;status;geography;disabled_date;type
+ETR-01;Pasarela de pagos v2;SDATOOL-37040;In progress;ES;;feature
+ETR-02;Refactor módulo de liquidación;SDATOOL-37040;New;ES;;task
+ETR-03;Evolutivo notificaciones push;SDATOOL-10001;Ready to Verify;ES;;feature
+ETR-04;Conceptualización onboarding;SDATOOL-30777;New;MX;;conceptualization time
+ETR-05;Feature desplegada;SDATOOL-37040;Deployed;ES;2026-09-20;feature

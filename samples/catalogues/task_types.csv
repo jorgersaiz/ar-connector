@@ -1,0 +1,14 @@
+task_type_id;task_type_parent_id;description_es;description_en;help_es;help_en;requires_sda_project;requires_jira_issue;requires_non_sda_project;requires_technology_detail;order;disabled_date;can_be_selected;requires_evolutionary_sda;requires_evolutionary_jira_issue;requires_conceptualization_time
+01;;Proyectos SDA;SDA Projects;Actividades sobre proyectos SDA;Activities on SDA projects;true;false;false;false;1;;false;false;false;false
+01.01;01;Desarrollo;Development;;;false;false;false;false;1;;false;false;false;false
+01.01.01;01.01;Construcción;Build;"Codificación, pruebas unitarias; revisión de código";"Coding, unit tests; code review";false;false;false;false;1;;true;false;false;false
+01.01.02;01.01;Desarrollo de feature;Feature development;Imputar sobre la feature de Jira;Log time on the Jira feature;false;true;false;false;2;;true;false;false;false
+01.02;01;Evolutivo;Evolutionary;;;false;false;false;false;2;;false;true;false;false
+01.02.01;01.02;Feature de evolutivo;Evolutionary feature;;;false;true;false;false;1;;true;false;true;false
+01.03;01;Conceptualización;Conceptualization;;;false;true;false;false;3;;true;false;false;true
+02;;Proyectos no SDA;Non-SDA projects;;;false;false;true;false;2;;false;false;false;false
+02.01;02;Soporte;Support;;;false;false;false;false;1;;true;false;false;false
+03;;Actividades generales;General activities;;;false;false;false;false;3;;false;false;false;false
+03.01;03;Formación;Training;;;false;false;false;false;1;;true;false;false;false
+03.02;03;Reuniones;Meetings;;;false;false;false;false;2;;true;false;false;false
+03.03;03;Actividad antigua;Legacy activity;;;false;false;false;false;3;2026-03-10;true;false;false;false

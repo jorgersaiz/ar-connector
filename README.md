@@ -35,20 +35,34 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `WorkCalendar` | fines de semana y festivos nacionales no se envían; festivos locales van como día no imputable |
 | `PeriodSnapshotBuilder` | reconstruye el periodo abierto completo (BBVA sobreescribe el día entero y solo procesa el último fichero del día) |
 | `PeriodSnapshotService` | orquestación con Spring/JPA: carga datos, genera fichero, persiste los días materializados desde plantilla |
+| `SemicolonCsv` + `CatalogParsers` | lectura de los 8 catálogos por nombre de columna (no por posición), con las columnas del documento; errores por fila con nº de línea |
+| `CatalogSyncService` + `CatalogStore` | reemplazo completo de cada catálogo en una transacción; un catálogo que falla conserva su versión anterior y no bloquea al resto; estado por catálogo en `catalog_sync_status` |
+| `CatalogSyncJob` | sincronización diaria a las 4:00 (los ficheros están disponibles desde las 3:00) |
+| `GET/POST /api/catalogs` | estado de cada catálogo y sincronización manual (`POST /api/catalogs/sync`, `POST /api/catalogs/{nombre}/sync`) |
+| `FileSystemActivityReportClient` | modo `AR_CLIENT=filesystem`: lee `samples/catalogues/<catalogo>.csv` para probar sin credenciales |
 
 Pendiente (en este orden):
 
-1. Sincronización de catálogos con las columnas reales del documento
-   (`task_types`, `sda_projects`, `jira_issues`, `jira_issues_historical`,
-   `jira_issue_sda_projects_historical`, `non_sda_projects`, `countries`,
-   `hidden_task_types`). `other_technologies` se eliminó en la v1.16.
-2. Cliente HTTP firmado con la Service Account, cuando BBVA entregue la
-   documentación de consumo de APIs (el Requestor va en cabecera).
-3. Job diario de envío + control de cuota (3 llamadas/día si la última fue OK, 6 si KO).
-4. Descarga y procesado del feedback (`APV_xx`) a la mañana siguiente.
-5. Importación CSV para el manager, avisos de huecos antes del corte, panel web con roles.
-6. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
+1. Cliente HTTP firmado con la Service Account, cuando BBVA entregue la
+   documentación de consumo de APIs (el Requestor va en cabecera). Hoy
+   `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
+2. Job diario de envío + control de cuota (3 llamadas/día si la última fue OK, 6 si KO).
+3. Descarga y procesado del feedback (`APV_xx`) a la mañana siguiente.
+4. Importación CSV para el manager, avisos de huecos antes del corte, panel web con roles.
+5. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
    de los SDA, estados de issues de Jira, evolutivos, nodos ocultos por persona.
+
+## Probar la sincronización sin credenciales
+
+```bash
+AR_CLIENT=filesystem docker compose up --build -d
+curl -X POST http://localhost:8080/api/catalogs/sync
+curl http://localhost:8080/api/catalogs
+```
+
+Los ficheros de `samples/catalogues/` siguen las columnas del documento y
+sirven de plantilla para sustituirlos por muestras reales de BBVA en cuanto
+las faciliten.
 
 ## Ejecutar los tests
 

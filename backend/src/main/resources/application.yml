@@ -23,6 +23,15 @@ activity-report:
   requestor-email: ${AR_REQUESTOR_EMAIL:}
   gps-codes: ${AR_GPS_CODES:}
   geographies: ${AR_GEOGRAPHIES:}
+  # http: contra BBVA (pendiente de la firma con la Service Account).
+  # filesystem: lee <local-dir>/<catalogo>.csv, para desarrollar sin credenciales.
+  client: ${AR_CLIENT:http}
+  local-dir: ${AR_LOCAL_DIR:../samples/catalogues}
+
+jobs:
+  timezone: Europe/Madrid
+  catalog-sync:
+    cron: "0 0 4 * * *"   # los catálogos están disponibles a partir de las 3:00
 
 logging:
   level:
