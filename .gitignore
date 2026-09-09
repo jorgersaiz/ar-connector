@@ -1,0 +1,21 @@
+# Secretos y configuración local
+.env
+*.pem
+*.json.credentials
+
+# Build
+backend/target/
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# SO
+.DS_Store
+Thumbs.db

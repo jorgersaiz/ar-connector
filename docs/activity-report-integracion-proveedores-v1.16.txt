@@ -1,0 +1,259 @@
+
+===== PAGE 1 ===== 
+Activity Report Engineering & Organization 
+Este documento describe la integración entre la aplicación Activity Report y las aplicaciones de los proveedores de Ingeniería para recoger las imputaciones de sus empleados. 
+Activity Report
+...............................................................................................................................
+1 CONTROL DE VERSIONES
+....................................................................................................
+2 INTRODUCCIÓN
+.....................................................................................................................
+4 ÁRBOL DE ACTIVIDADES
+......................................................................................................
+6 PROYECTOS SDA
+..................................................................................................................
+7 ISSUES DE PROYECTOS SDA
+..............................................................................................
+9 HISTÓRICO DE ESTADOS DE ISSUES DE PROYECTOS SDA
+.........................................
+10 HISTÓRICO DE FEATURES Y PROYECTOS SDA
+..............................................................
+11 PROYECTOS NO SDA
+..........................................................................................................
+12 PAÍSES
+..................................................................................................................................
+13 CATÁLOGO DE NODOS OCULTOS DEL ÁRBOL DE ACTIVIDADES
+..............................................
+14 IMPUTACIONES
+....................................................................................................................
+15 FEEDBACK DE IMPUTACIONES
+..........................................................................................
+18 REGISTRO DE USUARIOS
+...................................................................................................
+19 FEEDBACK DE REGISTRO DE USUARIOS
+........................................................................
+20 CONSIDERACIONES ENDPOINTS
+......................................................................................
+21 1. Subida de actividades
+........................................................................................................
+21 2. Descarga de fichero de feedback de registro de actividades
+............................................
+22 3. Descarga de catálogos
+......................................................................................................
+23 4. Subida de fichero de registro de usuarios
+..........................................................................
+24 5. Descarga de fichero de feedback de registro de usuarios
+.................................................
+25 MODELO DE SEGURIDAD
+...................................................................................................
+27 
+===== PAGE 2 ===== CONTROL DE VERSIONES 
+Versión Fecha de 
+Creación Responsable Descripción 1.0 19/04/2024 AR Team Versión Inicial 1.1 05/06/2024 AR Team Modiﬁcación en "IMPUTACIONES" 1.2 10/06/2024 AR Team Modiﬁcación en "CONSIDERACIONES ENDPOINTS" 1.3 12/11/2024 AR Team Se añaden validaciones sobre "PROYECTOS SDA" e "ISSUES DE PROYECTOS SDA" y se actualiza la información referente al ﬁchero de feedback. 1.4 15/11/2024 AR Team Se añaden 2 notas importantes sobre la validación de estados de SDAs y Jira Issues 1.5 05/12/2024 AR Team Se añade información sobre la renovación anual de las credenciales de las cuentas de servicio 1.6 21/02/2025 AR Team Se añade aclaración sobre los periodos modiﬁcables en imputaciones vía API 1.7 11/03/2025 AR Team Se añade el nuevo endpoint de descarga del catálogo de histórico de estados de Jira Issues 1.8 02/04/2025 AR Team Se añade explicación del campo “can_be_selected” al apartado ÁRBOL DE ACTIVIDADES 1.9 03/04/2025 AR Team Se añade aclaración sobre la necesidad de anonimizar el uid de los usuarios en mayúsculas 1.10 23/04/2025 AR Team Se añade nota técnica explicativa sobre el periodo de datos que se informa en el catálogo de 
+===== PAGE 3 ===== 
+histórico de Jira Issues 1.11 08/05/2025 AR Team Se añade información relevante acerca de los datos necesarios a tener en cuenta para poder calcular los márgenes de imputación de los proyectos SDA 1.12 16/05/2025 AR Team Se añade el nuevo endpoint de subida de registro
+ 
+de usuarios y el nuevo endpoint de descarga del feedback del proceso de registro de usuario. 1.13 08/07/2025 AR Team Se incluye el catalogo "HISTÓRICO DE PROYECTOS FEATURES Y PROYECTOS SDA" y nuevos campos en varios catalogos para la logica del tratamiento de "SDAs y features de evolutivo" 
+1.14 25/09/2026 AR Team Se añade información sobre los ﬁltrados realizados en los catálogos de issues y su histórico 1.15 23/01/2026 AR Team Se añade un nuevo tipo de issue "Conceptualization Time", afectando a varios catálogos 1.16 13/05/2026 AR Team Actualización de información referente a la posibilidad de imputación en Jira Issues con estado New y eliminación de la posibilidad de imputar “Otras tecnologías” 1.16 28/05/2026 AR Team Eliminación de cualquier referencia a “Otras tecnologías” 
+===== PAGE 4 ===== 
+INTRODUCCIÓN 
+Actualmente, hay una serie de empleados de empresas externas que disponen de acceso a la aplicación Activity Report para indicar el tiempo dedicado a diferentes actividades de desarrollo y/o mantenimiento de software. 
+Adicionalmente estas personas tienen acceso a sus propias aplicaciones para realizar la imputación de su tiempo, lo que conlleva que deban acceder a ambos sistemas para informar las actividades realizadas. 
+Se propone la integración de ambos sistemas (herramienta de empresa proveedora - Activity Report) de modo que los empleados de dichas empresas que estén en perímetro de Activity Report utilicen únicamente el sistema de sus respectivas empresas para sus imputaciones, cediéndole dicha información de manera automatizada a Activity Report para su almacenamiento y explotación junto con los datos del resto de usuarios y empresas que están en perímetro. 
+Para conseguir esta integración es necesario que ambos sistemas intercambien información acerca de los diferentes tipos de actividades y elementos sobre los que se puede imputar, de manera que la información introducida por los usuarios de la empresa proveedora en su sistema sea compatible con el modelo de actividades existente en Activity Report. 
+Una vez ambos sistemas disponen de un catálogo común de actividades y elementos imputables, es posible el envío de las actividades imputadas a Activity Report. 
+El intercambio de información propuesto consiste en el intercambio vía API de una serie de archivos, conteniendo los datos necesarios: 
+1. Desde Activity Report al Vendor: ○ Árbol de actividades ○ Catálogo de proyectos SDA ○ Catálogo de issues de proyectos SDA ○ Catálogo de histórico de issues de proyectos SDA ○ Catálogo de proyectos NO SDA 
+===== PAGE 5 ===== 
+○ Catálogo de tecnologías ○ Catálogo de países ○ Catálogo de nodos del árbol ocultos 
+○ Feedback de imputaciones ○ Feedback de usuários registrados 
+2. Desde el Vendor a Activity Report: ○ Imputaciones de personas en perímetro ○ Fichero de registro de usuarios A continuación se describe el contenido de cada uno de los archivos. El formato de todos será de un fichero CSV, utilizando punto y coma como separador de columnas. 
+===== PAGE 6 ===== 
+ÁRBOL DE ACTIVIDADES 
+Este fichero contiene la definición de las actividades que los usuarios pueden imputar. Por simplicidad contendrá únicamente las actividades que pueden utilizar las personas de empresas externas, y no todo el catálogo existente, que incluye actividades exclusivas de personal interno del banco. 
+Origen
+: Activity Report 
+Columnas: ● task_type_id: identificador de la actividad ● task_type_parent_id: identificador de la actividad padre de la que depende, puede ser vacío ● description_es: nombre de la actividad en español ● description_en: nombre de la actividad en inglés ● help_es: texto de ayuda en español ● help_en: texto de ayuda en inglés ● requires_sda_project: true / false si la actividad conlleva la selección de un proyecto SDA del catálogo ● requires_jira_issue: true / false si la actividad conlleva la selección de una issue ● requires_non_sda_project: true / false si la actividad conlleva la selección de un proyecto no SDA del catálogo ● requires_technology_detail: true / false si la actividad conlleva la introducción del detalle de tecnología empleada (desde el 13 de mayo de 2026 ningún nodo del árbol debería tener este campo a true) ● order: número entero que identifica el orden en el que aparece la actividad en el catálogo. Las actividades con orden más pequeño (para un mismo nivel del árbol) aparecen antes que las que tienen un orden mayor. ● disabled_date: fecha en la que la actividad se ha dado de baja (deja de ser visible), en formato YYYY-MM-DD. Si la actividad está vigente y se puede imputar a ella, este campo se encontrará vacío. Si la actividad no está vigente, se admitirán imputaciones a dicha actividad hasta el día indicado, incluido, pero no a partir del día siguiente. Si la actividad vuelve a estar vigente, se enviará en un nuevo fichero con la fecha vacía nuevamente. 
+===== PAGE 7 ===== 
+● can_be_selected: true / false, indica si la actividad es una actividad final o no, y por lo tanto si es una actividad imputable, sólo las actividades que nos tengan “hijos” serán actividades con can_be_selected = true ● requires_evolutionary_sda: true / false, indica si la actividad requiere un proyecto SDA de evolutivo. ● requires_evolutionary_jira_issue: true / false, indica si la actividad requiere una feature de evolutivo ● requires_conceptualization_time: true / false, indica si la actividad requiere una issue de tipo “conceptualization time” 
+PROYECTOS SDA 
+Este fichero contiene el catálogo de proyectos SDA a los que se pueden imputar actividades, siempre que éstas sean actividades de proyectos SDA (a día de hoy, actividades del árbol que dependen de la actividad “01”, que es la única con “requires_sda_project” a true) 
+Origen
+: Activity Report 
+Columnas: ● sda_project_id: identificador del proyecto SDA ● description: nombre del proyecto ● start_date: Q de inicio del proyecto. Ej: “1Q 2022” ● end_date: Q de fin del proyecto. ● status: estado del proyecto en SDA: Stock, Flow, On hold, etc. ● disabled_date: fecha en la que el proyecto se ha dado de baja, en formato YYYY-MM-DD. Si la fecha no es vacía, el proyecto es imputable hasta el día indicado, pero no se permitirá una imputación al día siguiente. Si el proyecto volviera a ser imputable, se enviará en un nuevo fichero con la fecha vacía nuevamente. ● country: string, nombre del país del SDA ● last_modified_status_date: fecha del último cambio realizado en el proyecto (este campo sirve para hayar el margen de imputación del proyecto en caso de estar en estado on hold) ● evolutionary_sda: true / false, indica si el proyecto SDA es evolutivo para ese día o no. 
+En este punto es importante mencionar que a día de hoy en Activity Report hay una serie de controles a la hora de imputar en proyectos SDA. Estos controles se basan en el estado del 
+===== PAGE 8 ===== 
+proyecto SDA proporcionado directamente por la herramienta SDA Suite. Estos controles son los siguientes: - Estado Ended: una vez que un proyecto pase a estado Ended, se limitará la imputación sobre este proyecto. Esto se debe a que un proyecto Ended está finalizado y por tanto no debería haber recursos dedicados a la ejecución del mismo. Cuando un proyecto pasa a este estado, en dicho Q siempre va a poder imputarse en él. A partir del Q siguiente es cuando pueden comenzar los controles que impidan su imputación. Esto depende del país en cuestión ya que son los propios países los que dictan cuando se implanta este control. Para poder hallar el margen de imputación que tiene un proyecto, debemos consultar el campo “ended_margin” del catálogo countries, en ese campo se informan los Qs de margen, que empiezan a contar a partir del Q informado en el campo end_date del proyecto SDA. 
+- Estado On hold: una vez que un proyecto pase a estado On Hold, se limitará la imputación sobre este proyecto. Esto se debe a que un proyecto On Hold se encuentra pausado y por tanto no debería haber recursos dedicados a la ejecución del mismo. Cuando un proyecto pasa a este estado, en dicho Q siempre va a poder imputarse en él. A partir del Q siguiente es cuando pueden comenzar los controles que impidan su imputación. Esto depende del país en cuestión ya que son los propios países los que dictan cuando se implanta el mismo. Para poder hallar el margen de imputación que tiene un proyecto, debemos consultar el campo “onhold_margin” del catálogo countries, en ese campo se informan los Qs de margen, que empiezan a contar a partir del Q resultante de la fecha last_modified_status_date del catálogo de SDAs. 
+===== PAGE 9 ===== 
+ISSUES DE PROYECTOS SDA 
+Este fichero contiene el catálogo de issues (actualmente features, tasks y conceptualization time
+) existentes en JIRA para cada uno de los proyectos SDA. 
+Origen
+: Activity Report 
+Columnas: ● jira_issue_id: identificador de la issue ● description: nombre de la issue ● sda_project_id: código del proyecto SDA asociado ● status: estado de la issue: New, In progress, Test, Ready to Verify, etc. ● geography: geografía en la que se ha creado la issue ● disabled_date: fecha en la que la issue se ha dado de baja, en formato YYYY-MM-DD. Si la fecha no es vacía, la issue es imputable hasta el día indicado, pero no se permitirá una imputación al día siguiente. Si la issue volviera a ser imputable, se enviará en un nuevo fichero con la fecha vacía nuevamente. ● type: tipo de issue de jira (feature, task, conceptualization time) 
+En este punto es importante mencionar que a día de hoy en Activity Report hay una serie de controles a la hora de imputar en issues de JIRA (Features y Tasks L1). Estos controles se basan en el estado de la issue de JIRA proporcionado directamente por la herramienta JIRA. Estos controles son los siguientes: 
+- JIRA Issues en estado NEW: siempre se podrá imputar en este estado, incluso si la fecha de creación es posterior a la fecha de imputación. - JIRA Issues en estado Discarded: solamente se va a poder imputar en una Feature o Task L1 hasta el día en el que la feature alcanza este estado Discarded. 
+- JIRA Issues en estado Deployed: solamente se va a poder imputar en una Feature o Task L1 hasta 30 días después de que la issue alcance el estado Deployed. 
+NOTAS
+: 
+● No se ceden issues (Features y Tasks L1) cuya fecha de actualización tenga una antigüedad mayor a 365 días 
+● No se ceden issues (Features y Tasks L1) en estado Deployed con antigüedad mayor a 30 días, contando desde el primer día del periodo modificable actual. 
+===== PAGE 10 ===== 
+HISTÓRICO DE ESTADOS DE ISSUES DE PROYECTOS SDA 
+Este fichero contiene el catálogo de histórico de estados de issues de los proyectos SDA. 
+Origen
+: Activity Report 
+Columnas: ● jira_issue_key: identificador de la issue ● status: estado de la issue: New, In progress, Test, Ready to Verify, etc. ● status_change_date: fecha del cambio al estado que se informa en la columna status en formato YYYY-MM-DD En este punto es importante mencionar que a día de hoy en Activity Report hay una serie de controles a la hora de imputar en issues de JIRA (Features y Tasks L1). Estos controles se basan en el estado de la issue de JIRA proporcionado directamente por la herramienta JIRA. Estos controles son los siguientes: 
+- JIRA Issues en estado NEW: siempre se podrá imputar en este estado, incluso si la fecha de creación es posterior a la fecha de imputación. - JIRA Issues en estado Discarded: solamente se va a poder imputar en una Feature o Task L1 hasta el día en el que la feature alcanza este estado Discarded. 
+- JIRA Issues en estado Deployed: solamente se va a poder imputar en una Feature o Task L1 hasta 30 días después de que la issue alcance el estado Deployed. NOTA
+: 
+● No se ceden issues (Features y Tasks L1) en el histórico cuyo estado tenga una antigüedad mayor a 30 días, contando desde el primer día del periodo modificable actual. 
+===== PAGE 11 ===== 
+HISTÓRICO DE FEATURES Y PROYECTOS SDA 
+Este fichero contiene el catálogo de histórico de cambios entre las entidades Features y proyectos SDA. Funciona de forma similar al catálogo de histórico de cambios de estado de las Jira Issues. Para obtener las SDAs asociadas a una feature en una fecha determinada hay que buscar cuál es su cambio más cercano y anterior a la fecha. 
+En el fichero se van a añadir solo los cambios producidos en la quincena en curso. Teniendo esto en cuenta, si una feature no se encuentra en el catálogo significa que sus SDA asociados no han cambiado en la quincena. Un último apunte es que hay features con varios proyectos SDA asociados, en el fichero esto se verá reflejado repitiendo líneas que solo cambien de sda_project_id: ● ETR-01, SDATOOL-37040, 2025-07-08 ● ETR-01, SDATOOL-10001, 2025-07-08 
+Origen
+: Activity Report 
+Columnas: ● jira_issue_key: identificador de la issue ● sda_project_id: identificador del proyecto de la SDA. ● date: fecha del cambio al estado que se informa en la columna status en formato YYYY-MM-DD 
+===== PAGE 12 ===== 
+PROYECTOS NO SDA 
+Este fichero contiene el catálogo de proyectos no SDA válidos para el día de su generación. Normalmente solo cambia cuando se produce un cambio de trimestre (Q) en el año, por ejemplo al cambiar de Q2 a Q3 el día 1 de julio. Siempre que éstas sean actividades de proyectos no SDA (a día de hoy, actividades del árbol que dependen de la actividad “02”, que es la única con “requires_non_sda_project” a true) 
+Origen
+: Activity Report 
+Columnas: ● description: nombre del proyecto no SDA ● disabled_date: fecha en la que el proyecto se ha dado de baja, en formato YYYY-MM-DD. Si la fecha no es vacía, el proyecto es imputable hasta el día indicado, pero no se permitirá una imputación al día siguiente. Si el proyecto volviera a ser imputable, se enviará en un nuevo fichero con la fecha vacía nuevamente. 
+===== PAGE 13 ===== 
+PAÍSES 
+Este fichero contiene el catálogo de datos de los países, en el que el dato principal son los márgenes de imputaciones de proyectos SDA por cada país. 
+Origen
+: Activity Report 
+Columnas: ● country_code;ended_margin;onhold_margin;sda_country;timezone ● country_code: string de 3 dígitos de la abreviación del país. ● ended_margin: número entero entre 0 y 4 que expresa los Qs (trimestres) de margen para los proyectos ended del país. ● onhold_margin: número entero entre 0 y 4 que expresa los Qs (trimestres) de margen para los proyectos onhold del país. ● sda_country: string, nombre del país informado en los proyectos SDAs ● timezone: string, la zona horaria del país. 
+===== PAGE 14 ===== 
+CATÁLOGO DE NODOS OCULTOS DEL ÁRBOL DE ACTIVIDADES 
+Este fichero contiene el catálogo donde se informan cuales son los nodos para un usuario / día en los que este usuario no puede imputar, este catálogo informará en cada registro un usuario que en la fecha X no puede imputar al TaskType X. En el fichero vendrá informado siempre el período modificable actual. 
+Origen
+: Activity Report 
+Columnas: ● person_id;date;geography;task_type_code ● person_id: string con el hash del uid del user anonimizado ● date: fecha ● geography: geografía a la que pertenece el usuario ● task_type_code: código del TaskType al que el usuario no puede imputar dicho día. 
+===== PAGE 15 ===== IMPUTACIONES 
+El archivo de imputaciones contendrá cada una de las actividades reportadas por las personas de la empresa en cuestión que estén en perímetro, en un formato compatible con el modelo de actividades de Activity Report. 
+Origen
+: Vendor 
+Columnas: ● “date”: fecha de la imputación en formato “YYYY-MM-DD” ● “person_id”: identificador anonimizado mediante SHA256 del código de usuario de la persona en mayúsculas ● “task_level_1_code”: identificador de la actividad de nivel 1 del árbol de actividades ● “task_level_2_code”: identificador de la actividad de nivel 2 del árbol de actividades 
+● “task_level_3_code”: identificador de la actividad de nivel 3 del árbol de actividades ● “task_level_4_code”: identificador de la actividad de nivel 4 del árbol de actividades 
+● “task_level_5_code”: identificador de la actividad de nivel 5 del árbol de actividades ● “sda_project_id”: código de proyecto SDA imputado si aplica o cadena vacía en su defecto ● “jira_issue_id”: código de issue de proyecto SDA imputada si aplica o cadena vacía en su defecto. 
+● “non_sda_project”: texto de proyecto NO SDA introducido por el usuario si aplica o cadena vacía en su defecto ● “technology_detail”: no se puede informar este campo desde el 13 de mayo del 2026 en adelante, cualquier información aportada en este campo causará un rechazo de imputación. ● “time”: tiempo imputado a la actividad, en minutos. Vacío para días no imputables. Consideraciones: 
+● Las actividades contenidas en el fichero deberán estar dentro del periodo modificable: ○ 1ª quincena: entre el día 1 y el dia 20 
+===== PAGE 16 ===== 
+○ 2ª quincena: entre el día 15 y el dia 5 de mes+1 ● No se admitirán imputación de actividades a futuro de igual forma que no se permite desde la aplicación Activity Report. ● Es muy importante tener en cuenta que si se modifica cualquier imputación de un día previamente enviado y procesado, es necesario enviar todas las imputaciones de ese día, ya que se sobrescribe el día completo en la bbdd de Activity Report. ● Si se desea eliminar por completo una imputación a una actividad previamente enviada y procesada, se debe enviar dicha actividad con tiempo a 0 o no enviarla. Es importante tener en cuenta que si se envía un día completamente vacío, para Activity Report será un día no imputable. ● Los días no imputables se informarán en un registro en el que se informará la fecha y el identificador de la persona, únicamente. No se informará ningún dato del árbol de actividades, ni de los diferentes catálogos, ni tiempo. No se admitirá imputaciones a días no imputables a futuro
+. ● Los festivos locales tendrán la consideración de días no imputables y deberán informarse de la misma manera. ● Se tendrán en cuenta los registros que correspondan a una persona en perímetro para el día en cuestión. 
+● Sobre los identificadores de actividad: ○ Se deberán informar los cinco niveles de actividad, incluyendo todos los niveles intermedios hasta la actividad imputada por el usuario. El resto de niveles hasta llegar a los cinco, repetirá el último nivel. Cualquier registro que no cumpla esta condición será ignorado. ○ No se permite imputar a nodos intermedios del árbol (el valor de la columna can_be_selected debe ser true). Por ejemplo, no se puede crear una imputación directa a proyectos SDA (“01”). Las imputaciones serán siempre a elementos del árbol que no tienen ningún nodo hijo. 
+● Cuando venga informada la columna sda_project_id se validará que el proyecto existe y está activo, así como que el tipo de actividad del árbol imputada requiere informar proyecto SDA. Cualquier registro que no cumpla esta condición será ignorado. ● Cuando venga informada la columna jira_issue_id, se comprobará que también viene informada la columna sda_project_id. La issue deberá existir y deberá pertenecer al proyecto SDA indicado, el cual también deberá existir. Cualquier registro que no cumpla esta condición será ignorado. ● Cuando venga informada la columna non_sda_project, se validará que el tipo de actividad del árbol imputada requiere informar proyecto no sda. Cualquier registro que no cumpla esta condición será ignorado. 
+===== PAGE 17 ===== 
+● Se validará que el tiempo indicado es un número entero comprendido entre 1 y 1440. Cualquier registro que no cumpla esta condición será ignorado. La suma de las imputaciones de una misma persona y fecha no puede ser mayor de 1440. ● Los rechazos no se procesan. Es decir, si por ejemplo tenemos una actividad cargada el día d y el día d+1 se envía una modificación de la imputación del día d que es rechazada, no se procesa, por lo que no sobreescribe la imputación que tuviera el día d. 
+===== PAGE 18 ===== 
+FEEDBACK DE IMPUTACIONES 
+El archivo de feedback de imputaciones contendrá cada una de las actividades procesadas por el proceso de carga de actividades, las filas que tengan la columna reason informada serán los rechazos que se han generado en algunas filas por no superar las validaciones mencionadas. 
+Origen
+: Activity Report 
+Tendrá el mismo formato que el fichero de imputaciones, pero se le añadirá la siguiente columna: 
+● “reason”: código del motivo de rechazo para los registros que sean rechazos 
+En el siguiente documento se indica la descripción de los diferentes códigos de los motivos de rechazo: 
+● 
+[API Vendors] Códigos de error en proceso de carga de actividades
+● 
+Los rechazos no se procesan. Es decir, si por ejemplo tenemos una actividad cargada el día d y el día d+1 se envía una modificación de la imputación del día d que es rechazada, no se procesa, por lo que no sobreescribe la imputación que tuviera el día d. Códigos de la carga de actividades ● Código de validación APV_01 (Fechas): la fecha es festivo, fin de semana o fuera del periodo modificable. ● Código de validación APV_02 (Usuarios): usuario no pertenece al Vendor, no tiene acceso (no está en perímetro), no existe, no está registrado o su fecha de inicio es posterior al día imputado. ● Código de validación APV_03 (Nodos del árbol de imputaciones): las 5 columnas tienen que existir y se tienen que corresponder con un camino del árbol desde la raíz (primera columna) hasta un nodo final seleccionable (can_be_selected), que sea visible. ● Código de validación APV_04 (Proyectos SDA): campo no informado, SDA no existe o no es posible imputar en él por validaciones de estados y fechas. 
+===== PAGE 19 ===== 
+● Código de validación APV_04_EV (Proyectos SDA de Evolutivos - Bolsa de evolutivos): se informa un SDA de evolutivo en un nodo de no evolutivo o viceversa. ● Código de validación APV_05 (JIRA Issues - Features y Tasks L1): campo no informado, Jira Issue no existe, no pertenece al proyecto SDA informado o no es posible imputar en la Jira Issue por validaciones de estados y fechas. ● Código de validación APV_05_EV
+ 
+(JIRA Issues de Evolutivos - Features y Tasks L1): se informa una Jira Issue de evolutivo en un nodo de no evolutivo o viceversa. ● Código de validación APV_05_EV_CT (JIRA Issues de Conceptualization Time): se informa una JiraIssue de Conceptualization Time en un nodo de no conceptualization time o viceversa. ● Código de validación APV_06 (Proyectos NO SDA): campo no informado, campo informado con un código SDA o campo de SDA informado sin necesidad. ● Código de validación APV_07 (Detalle de tecnologías): campo no informado. ● Código de validación APV_08 (Tiempo imputado): campo no informado, número menor que 0, número mayor a 1440 o no es un número. ● Código de validación APV_09 (Otros errores): error de validación no controlado, disparado por el core de la app, ponerse en contacto con el Tech Team de AR (en la mayoría de los casos este error se da por líneas de imputación duplicadas en el fichero, revisar esta posibilidad si se obtiene este error). ● Código de validación APV_10 (Nodo oculto): - Error de validación de un nodo oculto, este error refleja el rechazo ocasionado por la imputación indebida de un usuario en un nodo oculto para él en dicha fecha. 
+===== PAGE 20 ===== 
+REGISTRO DE USUARIOS 
+El archivo de registro de usuarios contendrá cada uno de los usuarios que se quieren registrar por primera vez en la herramienta de Activity Report. Es muy importante recalcar que el registro de usuarios no reactiva usuarios y que el fichero envíado no debe de tener uids duplicados
+. 
+Origen
+: Vendor 
+Columnas: ● “uids”: Identificador de usuario sin anonimizar. Consideraciones: ● Es muy importante tener en cuenta que los usuarios que se envíen en el día actual y sean registrados exitosamente, tendrán fecha inicial del día posterior. Es decir, los usuarios que se envíen el día 16 tendrán como fecha inicial el día 17. ● Para el registro de usuarios se tendrán en cuenta las siguientes validaciones: ○ El usuario debe de aparecer en el directorio de usuarios. ○ El usuario debe de tener el email informado en el directorio de usuarios. ○ El usuario debe pertenecer al vendor. ○ El usuario no debe ser ni interno ni participada. ○ El usuario no debe ser subcontratado de una participada. ○ El usuario debe cumplir las reglas de acceso a AR. ○ El usuario debe de pertenecer a una geografía del proveedor. ○ El usuario no debe de estar registrado en Activity Report, anteriormente. 
+===== PAGE 21 ===== 
+FEEDBACK DE REGISTRO DE USUARIOS 
+El archivo de feedback de registro de usuarios contendrá cada uno de los usuarios procesados por el proceso de registro de usuarios, las filas que tengan la columna reason informada serán los rechazos que se han generado en algunas filas por no superar las validaciones mencionadas anteriormente. 
+Origen
+: Activity Report 
+Tendrá el mismo formato que el fichero de registro de usuarios, pero se le añadirá la siguiente columna: 
+● “uid”: identificador de usuario anonimizado. ● “reason”: código del motivo de rechazo para los registros que sean rechazos. Códigos del registro de usuarios ● Código de validación APV_UR_01 (Directorio de usuarios): el usuario no aparece en el directorio de usuarios o el usuario no tiene el email informado en el directorio de usuarios. ● Código de validación APV_UR_02 (Código de compañía): el usuario no pertenece al vendor, el usuario es un usuario interno o participada o el usuario es un subcontratado de una participada. ● Código de validación APV_UR_03 (Reglas): el usuario no cumple las reglas de acceso a AR. ● Código de validación APV_UR_04 (Geografía): ninguna geografía ha podido ser detectada para el usuario o la geografía detectada no está definida para el vendor. ● Código de validación APV_UR_05 (Usuario ya registrado): el usuario ya ha sido registrado en AR con anterioridad. ● Código de validación APV_UR_06 (Fecha de incorporación): el usuario tiene fecha de incorporación posterior al día actual. 
+===== PAGE 22 ===== 
+CONSIDERACIONES ENDPOINTS 1. Subida de actividades 
+○ El número de llamadas diarias depende del resultado de la última llamada realizada en el dia: ● Si la última llamada OK, como máximo 3 llamadas. ● Si la última llamada KO, como máximo 6 llamadas. 
+○ El procesamiento del fichero se realizará el día N+1 y corresponderá con el último fichero enviado el día N. IMPORTANTE: 
+■ El último día para enviar datos de la 1ª quincena será el día 19 del mes
+, ya que la validación de periodo modificable en el API, es sobre el día de procesamiento y no el de envío. ■ El último día para enviar datos de la 2ª quincena será el día 4 del mes+1
+, ya que la validación de periodo modificable en el API, es sobre el día de procesamiento y no el de envío. 
+○ Endpoint
+: POST <domain>/timereport/api/vendors/upload_activities_file (enviando el fichero en la llamada) ○ Interfaz: ● Entrada: ○ Fichero con actividades ● Salida: ○ KO: Por ejemplo, un error en formato de lista de actividades: validar simplemente que llegan las cabeceras correctas y el número de columnas correctas. Si esta primera validación no es superada, se devolverá código de error 400 junto con un json que contendrá: ■ Estado de cabecera 
+===== PAGE 23 ===== 
+■ Número de las líneas que no contienen el nº de columnas correcto. 
+○ OK: Se devuelve un código 200. 
+○ Notas
+: 
+● El nombre del fichero enviado es indiferente, solo se tendrá en cuenta el contenido ● Si el proveedor utiliza varios códigos GPS, se realizará una agrupación de los mismos. 
+● Es muy importante que el proveedor comunique a los administradores de Activity Report la siguiente información: ○ geografías: geografías en las que está presente el proveedor y a las cuales pertenecen las personas de las que nos pueden llegar imputaciones 
+○ codigos gps: de la empresa a la cual pertenecen las personas de las que nos pueden llegar imputaciones Dicha configuración se almacenará en la nueva entidad “
+Vendors
+” y es muy importante que ante cualquier cambio, el proveedor se lo comunique a los administradores de Activity Report. Si la información recibida no es coherente con lo almacenado en la entidad “Vendors”, las actividades recibidas serán rechazadas. 2. Descarga de fichero de feedback de registro de actividades 
+○ Tras realizar un envío del fichero de actividades y realizar su procesado, se generará un fichero que contiene todos los registros procesados, las filas que tengan informada la columna reason serán los rechazos. ○ Los rechazos no se procesan. Es decir, si por ejemplo tenemos una actividad cargada el día d y el dia d+1 se envía una modificación de la imputación del día d que es rechazada, no se procesa, por lo que no sobreescribe la imputación que tuviera el día d. ○ El formato de fichero será: activities_{vendor}_{fecha}_feedback.csv ○ No hay limitación de llamadas 
+===== PAGE 24 ===== 
+○ Documento de los códigos-descripciones de rechazos: ■ 
+[API Vendors] Códigos de error en proceso de carga de actividades ○ Endpoint
+: GET <domain>/timereport/api/vendors/feedback_file/<date> 
+○ Interfaz
+: ● Entrada: 
+○ fecha del fichero de actividades (AAAA-MM-DD) del cual se quieren obtener los rechazos. 
+● Salida: ○ OK: 
+■ fichero con lista de rechazos 
+○ KO: Por ejemplo: No hay fichero de feedback para ese Vendor y esa fecha 
+○ Los ficheros de feedback estarán disponibles a diario a partir de las 3am 
+3. Descarga de catálogos 
+○ Se creará un endpoint por catalogo y se devolverán los siguientes datos: ■ Árbol actividades ■ Proyectos SDA ■ Issues de Proyectos SDA ■ Histórico de estado de Issues de Proyectos SDA 1. NOTA: En este catálogo solo se envían datos de registros cuyo último cambio de estado se haya producido en los últimos 30 días, puesto que es el máximo margen de días del estado Deployed ■ Proyectos NO SDA ■ Datos de países (este catálogo ofrece principalmente el dato de los márgenes de imputación en proyectos SDA que existe para cada país) ■ Nodos ocultos del árbol de actividades 
+○ Endpoint
+: GET <domain>/timereport/api/vendors/catalogues/<catalogue> 
+○ Interfaz
+: 
+===== PAGE 25 ===== 
+● Entrada: nombre del catálogo: ○ task_types ○ sda_projects ○ jira_issues ○ jira_issues_historical ○ jira_issue_sda_projects_historical ○ non_sda_projects ○ other_technologies ○ countries ○ hidden_task_types ● Salida: ○ OK: fichero del catálogo solicitado. ○ KO: Por ejemplo, un catálogo que no exista. ○ Los ficheros de catálogos estarán disponibles a diario a partir de las 3am 
+4. Subida de fichero de registro de usuarios 
+○ El número de llamadas diarias depende del resultado de la última llamada realizada en el dia: ■ Si la última llamada OK, como máximo 3 llamadas. ■ Si la última llamada KO, como máximo 6 llamadas. 
+○ El procesamiento del fichero se realizará el día N+1 y corresponderá con el último fichero enviado el día N. IMPORTANTE: 
+■ Los usuarios envíados en el día actual, tendrán fecha inicial del día posterior, es decir, los usuarios envíados el día 16 y registrados satisfactoriamente, tendrán fecha inicial del día 17. ■ El fichero no debe contener uids duplicados. 
+○ Endpoint
+: POST <domain>/timereport/api/vendors/upload_user_registration_file (enviando el fichero en la llamada) 
+===== PAGE 26 ===== 
+○ Interfaz: ● Entrada: ○ Fichero con los usuarios que se quieren registrar en AR. ● Salida: ○ KO: Por ejemplo, un error en formato de lista de usuarios: validar simplemente que llegan las cabeceras correctas y el número de columnas correctas. Si esta primera validación no es superada, se devolverá código de error 400 junto con un json que contendrá: ■ Estado de cabecera ■ Número de las líneas que no contienen el nº de columnas correcto. 
+○ OK: Se devuelve un código 200. 
+○ Notas
+: 
+● El nombre del fichero enviado es indiferente, solo se tendrá en cuenta el contenido. ● Es muy importante que el proveedor comunique a los administradores de Activity Report la siguiente información: ○ geografías: geografías en las que está presente el proveedor y a las cuales pertenecen las personas que se quieren registrar en la herramienta. ○ codigos gps: de la empresa a la cual pertenecen las personas que se quieren registrar en la herramienta. Dicha configuración se almacenará en la nueva entidad “
+Vendors
+” y es muy importante que ante cualquier cambio, el proveedor se lo comunique a los administradores de Activity Report. Si la información recibida no es coherente con lo almacenado en la entidad “Vendors”, los usuarios serán rechazados. 5. Descarga de fichero de feedback de registro de usuarios 
+===== PAGE 27 ===== 
+○ Tras realizar un envío del fichero de registro de usuarios y realizar su procesado, se generará un fichero que contiene todos los registros procesados, las filas que tengan informada la columna reason serán los rechazos. ○ El formato de fichero será: users_{vendor}_{fecha}_feedback.csv ○ No hay limitación de llamadas. ○ Documento de los códigos-descripciones de rechazos: ■ 
+[API Vendors] Códigos de error 
+○ Endpoint
+: GET <domain>/timereport/api/vendors/user_registration_feedback_file/<date> 
+○ Interfaz
+: ● Entrada: 
+○ fecha del fichero de registro de usuarios (AAAA-MM-DD) del cual se quieren obtener los rechazos. 
+● Salida: ○ OK: 
+■ fichero con lista de rechazos 
+○ KO: Por ejemplo: No hay fichero de feedback para ese Vendor y esa fecha. 
+○ Los ficheros de feedback estarán disponibles a diario a partir de las 3am. 
+===== PAGE 28 ===== 
+MODELO DE SEGURIDAD 
+La siguiente figura muestra la arquitectura propuesta para la solución. Como muestra la figura, tanto la obtención de información sobre los catálogos, como la ingesta de información de las actividades imputadas se realiza a través de una API que deberá construirse en Activity Report. 
+Cada proveedor tendrá su Service Account y se le hará entrega de una credencial asociada en formato json que deberán usar para firmar la petición como se explica en esta documentación: https://platform.bbva.com/gcp/documentation/17PXXnz5zN69KA7ZBeT_TVUBdYMFHfs95t3dtE
+eHdNDM/technical-documentation/apis/comsumption#h.eo3uxpi8duyc Estas credenciales se renovarán por seguridad una vez al año, el primer día laborable después del 20 de enero, comenzando el 21/01/2026. En esa fecha os enviaremos las nuevas credenciales, donde solo cambiará la private_key. 
+ES MUY IMPORTANTE que el proveedor comunique a los administradores de Activity Report la siguiente información y cualquier modificación sobre la misma: 
+===== PAGE 29 ===== 
+● Códigos GPS de empresa: de los empleados de los cuales se van a ceder imputaciones. ● Emails xxxxx.yyyyy.contractor@bbva.com que se van a usar en las peticiones para informar el Requestor del Header
+. ● Geografías de los empleados de los cuales se van a ceder imputaciones. 
+Estos se van a utilizar para la autenticación de las llamadas al API. Dicha configuración se almacenará en la nueva entidad “
+Vendors
+” y es muy importante que cualquier cambio sea comunicado a los administradores de Activity Report. Si la información recibida no es coherente con lo almacenado en la entidad “Vendors”, se rechazará la llamada al API. 
