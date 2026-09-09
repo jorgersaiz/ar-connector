@@ -3,6 +3,9 @@
 *.pem
 *.json.credentials
 
+# Ficheros generados por el cliente en modo filesystem
+samples/catalogues/outbox/
+
 # Build
 backend/target/
 frontend/node_modules/

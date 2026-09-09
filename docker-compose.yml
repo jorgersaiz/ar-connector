@@ -34,7 +34,7 @@ services:
       AR_CLIENT: ${AR_CLIENT:-http}
       AR_LOCAL_DIR: /app/samples/catalogues
     volumes:
-      - ./samples:/app/samples:ro
+      - ./samples:/app/samples
     ports:
       - "8080:8080"
 

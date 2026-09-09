@@ -1,10 +1,13 @@
 package com.vendor.arconnector.client;
 
 import com.vendor.arconnector.catalog.CatalogName;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
-import org.springframework.web.client.ResourceAccessException;
 
 /**
  * Cliente HTTP contra la API de vendors de Activity Report, con
@@ -36,10 +39,39 @@ public class HttpActivityReportClient implements ActivityReportClient {
             return body;
         } catch (RestClientResponseException e) {
             throw new ActivityReportClientException("Activity Report respondió " + e.getStatusCode().value()
-                    + " al descargar el catálogo " + catalogue.apiName() + ": " + e.getResponseBodyAsString(), e);
+                    + " al descargar el catálogo " + catalogue.apiName() + ": " + e.getResponseBodyAsString(),
+                    e.getStatusCode().value(), e);
         } catch (ResourceAccessException e) {
             throw new ActivityReportClientException("No se ha podido conectar con Activity Report para descargar "
                     + catalogue.apiName() + ": " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void uploadActivitiesFile(byte[] content, String fileName) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new ByteArrayResource(content) {
+            @Override
+            public String getFilename() {
+                return fileName;
+            }
+        });
+        try {
+            restClient.post()
+                    .uri("/upload_activities_file")
+                    .headers(authenticator::apply)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            // Un 400 trae un JSON con el estado de la cabecera y las líneas con nº de columnas incorrecto
+            throw new ActivityReportClientException("Activity Report respondió " + e.getStatusCode().value()
+                    + " al subir el fichero de imputaciones: " + e.getResponseBodyAsString(),
+                    e.getStatusCode().value(), e);
+        } catch (ResourceAccessException e) {
+            throw new ActivityReportClientException("No se ha podido conectar con Activity Report para subir el fichero de imputaciones: "
+                    + e.getMessage(), e);
         }
     }
 }

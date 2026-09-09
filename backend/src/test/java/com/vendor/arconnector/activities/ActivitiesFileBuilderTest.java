@@ -276,6 +276,23 @@ class ActivitiesFileBuilderTest {
     }
 
     @Test
+    void enModoToleranteSeExcluyenLosDiasInvalidosYSeGeneraElResto() {
+        ActivitiesFileBuilder.LenientResult result = builder.buildSkippingInvalid(List.of(
+                worked("2026-03-10", LineSubmission.of("03.01", 60)),
+                worked("2026-03-11", LineSubmission.of("03.01", 0)),                 // TIME_OUT_OF_RANGE
+                DaySubmission.worked("XE2", LocalDate.parse("2026-03-11"), List.of(LineSubmission.of("03.01", 30)))
+        ), SUBMISSION);
+
+        assertThat(result.file().dayCount()).isEqualTo(2);
+        assertThat(result.file().rowCount()).isEqualTo(2);
+        assertThat(result.excludedDays()).isEqualTo(1);
+        assertThat(result.problems()).extracting(ValidationProblem::code).containsExactly("TIME_OUT_OF_RANGE");
+        assertThat(result.excludedDayKeys()).containsExactly(UID + "|2026-03-11");
+        assertThat(result.file().asText()).doesNotContain("2026-03-11;" + PERSON_ID);
+        assertThat(result.file().asText()).contains("2026-03-11;" + PersonIdHasher.hash("XE2"));
+    }
+
+    @Test
     void unDiaValidoYOtroInvalidoNoGeneraFicheroParcial() {
         assertThatThrownBy(() -> builder.build(List.of(
                 worked("2026-03-10", LineSubmission.of("03.01", 60)),

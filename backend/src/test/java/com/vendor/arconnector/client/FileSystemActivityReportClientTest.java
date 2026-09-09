@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,5 +31,18 @@ class FileSystemActivityReportClientTest {
         assertThatThrownBy(() -> client.downloadCatalogue(CatalogName.TASK_TYPES))
                 .isInstanceOf(ActivityReportClientException.class)
                 .hasMessageContaining("task_types.csv");
+    }
+
+    @Test
+    void laSubidaEscribeElFicheroEnLaBandejaDeSalida(@TempDir Path dir) throws Exception {
+        FileSystemActivityReportClient client = new FileSystemActivityReportClient(dir);
+
+        client.uploadActivitiesFile("date;person_id\n".getBytes(StandardCharsets.UTF_8), "activities_2026-09-09.csv");
+
+        try (Stream<Path> files = Files.list(dir.resolve("outbox"))) {
+            Path written = files.findFirst().orElseThrow();
+            assertThat(written.getFileName().toString()).endsWith("_activities_2026-09-09.csv");
+            assertThat(Files.readString(written)).isEqualTo("date;person_id\n");
+        }
     }
 }

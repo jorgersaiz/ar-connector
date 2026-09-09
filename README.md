@@ -39,18 +39,23 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `CatalogSyncService` + `CatalogStore` | reemplazo completo de cada catálogo en una transacción; un catálogo que falla conserva su versión anterior y no bloquea al resto; estado por catálogo en `catalog_sync_status` |
 | `CatalogSyncJob` | sincronización diaria a las 4:00 (los ficheros están disponibles desde las 3:00) |
 | `GET/POST /api/catalogs` | estado de cada catálogo y sincronización manual (`POST /api/catalogs/sync`, `POST /api/catalogs/{nombre}/sync`) |
-| `FileSystemActivityReportClient` | modo `AR_CLIENT=filesystem`: lee `samples/catalogues/<catalogo>.csv` para probar sin credenciales |
+| `FileSystemActivityReportClient` | modo `AR_CLIENT=filesystem`: lee `samples/catalogues/<catalogo>.csv` y escribe los ficheros subidos en `samples/catalogues/outbox/`, para probar sin credenciales |
+| `CallQuotaService` | cuota diaria por canal: 3 llamadas si la última fue OK, 6 si fue KO; el día es el de `jobs.timezone` |
+| `ActivitiesUploadService` | reconstruye el periodo abierto, excluye los días inválidos (no bloquea al equipo), no gasta cuota si el fichero es idéntico al último enviado con éxito hoy, registra cada llamada con el fichero exacto en `api_call` y marca los días enviados |
+| `UploadJob` | envío a las 13:00, 18:00 y 21:00 todos los días (los cortes pueden caer en fin de semana) |
+| `/api/uploads` | `GET /preview` (fichero sin enviar), `POST /run`, `GET /quota`, `GET` histórico, `GET /{id}/file` |
 
 Pendiente (en este orden):
 
 1. Cliente HTTP firmado con la Service Account, cuando BBVA entregue la
    documentación de consumo de APIs (el Requestor va en cabecera). Hoy
    `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
-2. Job diario de envío + control de cuota (3 llamadas/día si la última fue OK, 6 si KO).
-3. Descarga y procesado del feedback (`APV_xx`) a la mañana siguiente.
-4. Importación CSV para el manager, avisos de huecos antes del corte, panel web con roles.
-5. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
+2. Descarga y procesado del feedback (`APV_xx`) a la mañana siguiente.
+3. Alta de personas y plantillas por API, importación CSV para el manager,
+   avisos de huecos antes del corte, panel web con roles.
+4. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
    de los SDA, estados de issues de Jira, evolutivos, nodos ocultos por persona.
+5. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
 
 ## Probar la sincronización sin credenciales
 
@@ -63,6 +68,23 @@ curl http://localhost:8080/api/catalogs
 Los ficheros de `samples/catalogues/` siguen las columnas del documento y
 sirven de plantilla para sustituirlos por muestras reales de BBVA en cuanto
 las faciliten.
+
+Para probar el envío hace falta al menos una persona con plantilla (todavía
+no hay API de alta; se insertan en SQL):
+
+```sql
+insert into person (uid,email,display_name,gps_code,geography,start_date)
+  values ('XE12345','ana@vendor.com','Ana','GPS001','ES','2026-01-01');
+insert into default_template (person_id, valid_from) select id, '2026-01-01' from person where uid='XE12345';
+insert into default_template_line (default_template_id, task_type_code, sda_project_id, minutes)
+  select id, '01.01.01', 'SDATOOL-37040', 480 from default_template;
+```
+
+```bash
+curl http://localhost:8080/api/uploads/preview      # fichero, huecos y días excluidos, sin enviar
+curl -X POST http://localhost:8080/api/uploads/run  # envía (en modo filesystem, a samples/catalogues/outbox/)
+curl http://localhost:8080/api/uploads/quota
+```
 
 ## Ejecutar los tests
 

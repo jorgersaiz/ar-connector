@@ -15,6 +15,12 @@ import java.util.*;
  * Formato: CSV separado por ';', UTF-8, una fila por línea de actividad y una
  * fila con solo fecha y person_id por cada día no imputable.
  *
+ * Dos modos:
+ *  - {@link #build}: estricto, cualquier problema impide generar el fichero.
+ *  - {@link #buildSkippingInvalid}: excluye los días con problemas y genera el
+ *    resto. Es seguro porque BBVA solo sobreescribe los días que van en el
+ *    fichero; un día ausente queda como estaba.
+ *
  * Códigos de problema (paralelos a los APV_xx del feedback de BBVA):
  * <pre>
  *  DATE_FUTURE               fecha posterior al día de envío (BBVA no admite futuro)
@@ -45,6 +51,22 @@ public final class ActivitiesFileBuilder {
             "sda_project_id", "jira_issue_id", "non_sda_project", "technology_detail", "time"
     );
 
+    /** Resultado del modo tolerante: fichero con los días válidos + problemas de los excluidos. */
+    public record LenientResult(ActivitiesFile file, List<ValidationProblem> problems, int excludedDays) {
+
+        /** Claves "uid|fecha" de los días que se han quedado fuera del fichero. */
+        public Set<String> excludedDayKeys() {
+            Set<String> keys = new HashSet<>();
+            for (ValidationProblem p : problems) {
+                keys.add(p.uid() + "|" + p.date());
+            }
+            return keys;
+        }
+    }
+
+    private record Outcome(ActivitiesFile file, List<ValidationProblem> problems, int excludedDays) {
+    }
+
     private final TaskTree tree;
     private final ModifiablePeriodPolicy periodPolicy;
 
@@ -59,77 +81,40 @@ public final class ActivitiesFileBuilder {
      * {@link ActivitiesFileValidationException} con TODOS los problemas.
      */
     public ActivitiesFile build(List<DaySubmission> days, LocalDate submissionDate) {
+        Outcome outcome = compute(days, submissionDate);
+        if (!outcome.problems().isEmpty()) {
+            throw new ActivitiesFileValidationException(outcome.problems());
+        }
+        return outcome.file();
+    }
+
+    /** Genera el fichero solo con los días válidos; los demás se devuelven como problemas. */
+    public LenientResult buildSkippingInvalid(List<DaySubmission> days, LocalDate submissionDate) {
+        Outcome outcome = compute(days, submissionDate);
+        return new LenientResult(outcome.file(), outcome.problems(), outcome.excludedDays());
+    }
+
+    private Outcome compute(List<DaySubmission> days, LocalDate submissionDate) {
         List<ValidationProblem> problems = new ArrayList<>();
         List<String[]> rows = new ArrayList<>();
         Set<String> seenDays = new HashSet<>();
+        int includedDays = 0;
+        int excludedDays = 0;
 
         List<DaySubmission> ordered = days.stream()
-                .sorted(Comparator.comparing(DaySubmission::date).thenComparing(DaySubmission::uid))
+                .sorted(Comparator.comparing(DaySubmission::date).thenComparing(d -> d.uid() == null ? "" : d.uid()))
                 .toList();
 
         for (DaySubmission day : ordered) {
-            if (day.uid() == null || day.uid().isBlank()) {
-                problems.add(new ValidationProblem("?", day.date(), "UID_BLANK", "uid vacío"));
-                continue;
-            }
-            if (!seenDays.add(day.uid() + "|" + day.date())) {
-                problems.add(problem(day, "DUPLICATE_DAY", "el día aparece más de una vez"));
-                continue;
-            }
-            if (day.date().isAfter(submissionDate)) {
-                problems.add(problem(day, "DATE_FUTURE", "no se admiten imputaciones a futuro"));
-                continue;
-            }
-            if (!periodPolicy.canSubmitOn(day.date(), submissionDate)) {
-                problems.add(problem(day, "DATE_OUT_OF_PERIOD",
-                        "fuera del periodo modificable; último día de envío era "
-                                + periodPolicy.lastSubmissionDate(day.date())));
-                continue;
-            }
-
-            String personId = PersonIdHasher.hash(day.uid());
-
-            if (day.kind() == DayKind.NON_WORKING) {
-                rows.add(nonWorkingRow(day.date(), personId));
-                continue;
-            }
-
-            if (day.lines().isEmpty()) {
-                problems.add(problem(day, "EMPTY_WORKED_DAY",
-                        "día trabajado sin líneas; Activity Report lo trataría como no imputable"));
-                continue;
-            }
-
-            int before = problems.size();
-            List<String[]> dayRows = new ArrayList<>();
-            Set<String> seenLines = new HashSet<>();
-            int total = 0;
-
-            for (LineSubmission line : day.lines()) {
-                total += line.minutes();
-                int beforeLine = problems.size();
-                validateLine(day, line, problems);
-                String key = String.join("|", nz(line.taskTypeCode()), nz(line.sdaProjectId()),
-                        nz(line.jiraIssueId()), nz(line.nonSdaProject()));
-                if (!seenLines.add(key)) {
-                    problems.add(problem(day, "DUPLICATE_LINE",
-                            "línea repetida para " + line.taskTypeCode() + " (Activity Report devolvería APV_09)"));
-                }
-                if (problems.size() == beforeLine) {
-                    dayRows.add(workedRow(day.date(), personId, line));
-                }
-            }
-            if (total > MAX_MINUTES_PER_DAY) {
-                problems.add(problem(day, "TIME_DAY_EXCEEDED",
-                        "la suma del día es " + total + " minutos, máximo " + MAX_MINUTES_PER_DAY));
-            }
-            if (problems.size() == before) {
+            List<ValidationProblem> dayProblems = new ArrayList<>();
+            List<String[]> dayRows = validateDay(day, submissionDate, seenDays, dayProblems);
+            if (dayProblems.isEmpty()) {
                 rows.addAll(dayRows);
+                includedDays++;
+            } else {
+                problems.addAll(dayProblems);
+                excludedDays++;
             }
-        }
-
-        if (!problems.isEmpty()) {
-            throw new ActivitiesFileValidationException(problems);
         }
 
         StringBuilder sb = new StringBuilder();
@@ -137,7 +122,67 @@ public final class ActivitiesFileBuilder {
         for (String[] row : rows) {
             sb.append(String.join(SEPARATOR, row)).append(LINE_END);
         }
-        return new ActivitiesFile(sb.toString().getBytes(StandardCharsets.UTF_8), ordered.size(), rows.size());
+        ActivitiesFile file = new ActivitiesFile(sb.toString().getBytes(StandardCharsets.UTF_8), includedDays, rows.size());
+        return new Outcome(file, problems, excludedDays);
+    }
+
+    /** Valida un día completo; devuelve sus filas si es válido y deja los problemas en {@code problems}. */
+    private List<String[]> validateDay(DaySubmission day, LocalDate submissionDate, Set<String> seenDays,
+                                       List<ValidationProblem> problems) {
+        if (day.uid() == null || day.uid().isBlank()) {
+            problems.add(new ValidationProblem("?", day.date(), "UID_BLANK", "uid vacío"));
+            return List.of();
+        }
+        if (!seenDays.add(day.uid() + "|" + day.date())) {
+            problems.add(problem(day, "DUPLICATE_DAY", "el día aparece más de una vez"));
+            return List.of();
+        }
+        if (day.date().isAfter(submissionDate)) {
+            problems.add(problem(day, "DATE_FUTURE", "no se admiten imputaciones a futuro"));
+            return List.of();
+        }
+        if (!periodPolicy.canSubmitOn(day.date(), submissionDate)) {
+            problems.add(problem(day, "DATE_OUT_OF_PERIOD",
+                    "fuera del periodo modificable; último día de envío era "
+                            + periodPolicy.lastSubmissionDate(day.date())));
+            return List.of();
+        }
+
+        String personId = PersonIdHasher.hash(day.uid());
+
+        if (day.kind() == DayKind.NON_WORKING) {
+            return List.<String[]>of(nonWorkingRow(day.date(), personId));
+        }
+
+        if (day.lines().isEmpty()) {
+            problems.add(problem(day, "EMPTY_WORKED_DAY",
+                    "día trabajado sin líneas; Activity Report lo trataría como no imputable"));
+            return List.of();
+        }
+
+        List<String[]> dayRows = new ArrayList<>();
+        Set<String> seenLines = new HashSet<>();
+        int total = 0;
+
+        for (LineSubmission line : day.lines()) {
+            total += line.minutes();
+            int before = problems.size();
+            validateLine(day, line, problems);
+            String key = String.join("|", nz(line.taskTypeCode()), nz(line.sdaProjectId()),
+                    nz(line.jiraIssueId()), nz(line.nonSdaProject()));
+            if (!seenLines.add(key)) {
+                problems.add(problem(day, "DUPLICATE_LINE",
+                        "línea repetida para " + line.taskTypeCode() + " (Activity Report devolvería APV_09)"));
+            }
+            if (problems.size() == before) {
+                dayRows.add(workedRow(day.date(), personId, line));
+            }
+        }
+        if (total > MAX_MINUTES_PER_DAY) {
+            problems.add(problem(day, "TIME_DAY_EXCEEDED",
+                    "la suma del día es " + total + " minutos, máximo " + MAX_MINUTES_PER_DAY));
+        }
+        return dayRows;
     }
 
     private void validateLine(DaySubmission day, LineSubmission line, List<ValidationProblem> problems) {

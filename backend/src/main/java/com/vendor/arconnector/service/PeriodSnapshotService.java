@@ -11,17 +11,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;
+import java.util.*;
 
 /**
  * Orquesta la generación del fichero de imputaciones del periodo abierto:
  * carga personas, días, plantillas, festivos y árbol de actividades desde la
  * base de datos, delega la lógica en {@link PeriodSnapshotBuilder} y
- * {@link ActivitiesFileBuilder}, y persiste los días materializados desde
- * plantilla para que queden visibles y editables.
+ * {@link ActivitiesFileBuilder}, y (opcionalmente) persiste los días
+ * materializados desde plantilla para que queden visibles y editables.
  *
- * No envía nada a Activity Report: eso lo hará el cliente firmado cuando se
- * disponga de la documentación de autenticación de BBVA.
+ * Los días con problemas de validación se excluyen del fichero y se devuelven
+ * en {@link Result#problems()}: un día ausente no toca nada en BBVA, mientras
+ * que bloquear el envío entero dejaría a todo el equipo sin imputar.
+ *
+ * No envía nada a Activity Report: eso lo hace {@link ActivitiesUploadService}.
  */
 @Service
 public class PeriodSnapshotService {
@@ -47,23 +50,35 @@ public class PeriodSnapshotService {
         this.taskTypeRepository = taskTypeRepository;
     }
 
-    public record Result(ActivitiesFile file, List<Gap> gaps, int generatedDays) {
+    /**
+     * @param file           fichero listo para enviar (solo días válidos)
+     * @param gaps           días laborables sin actividad ni plantilla
+     * @param problems       días excluidos del fichero por no pasar las validaciones
+     * @param generatedDays  días materializados desde plantilla o festivo local en esta ejecución
+     * @param includedDayIds ids de los ActivityDay que van en el fichero (vacío si no se persistió)
+     */
+    public record Result(ActivitiesFile file,
+                         List<Gap> gaps,
+                         List<ValidationProblem> problems,
+                         int generatedDays,
+                         List<Long> includedDayIds) {
+
+        public static Result empty() {
+            return new Result(new ActivitiesFile(new byte[0], 0, 0), List.of(), List.of(), 0, List.of());
+        }
     }
 
     /**
-     * Genera el fichero para un envío hecho hoy. Los días creados desde
-     * plantilla se guardan con origen TEMPLATE.
+     * Genera el fichero para un envío hecho en {@code submissionDate}.
+     *
+     * @param persistGenerated true para guardar los días creados desde plantilla
+     *                         (envío real); false para una previsualización
      */
     @Transactional
-    public Result buildForToday() {
-        return buildFor(LocalDate.now());
-    }
-
-    @Transactional
-    public Result buildFor(LocalDate submissionDate) {
+    public Result buildFor(LocalDate submissionDate, boolean persistGenerated) {
         List<LocalDate> dates = periodPolicy.submittableActivityDates(submissionDate);
         if (dates.isEmpty()) {
-            return new Result(new ActivitiesFile(new byte[0], 0, 0), List.of(), 0);
+            return Result.empty();
         }
         LocalDate from = dates.get(0);
         LocalDate to = dates.get(dates.size() - 1);
@@ -81,15 +96,36 @@ public class PeriodSnapshotService {
         PeriodSnapshot snapshot = new PeriodSnapshotBuilder(periodPolicy, calendar)
                 .build(submissionDate, persons, existing, templates);
 
-        ActivitiesFile file = new ActivitiesFileBuilder(tree, periodPolicy).build(snapshot.days(), submissionDate);
+        ActivitiesFileBuilder.LenientResult built = new ActivitiesFileBuilder(tree, periodPolicy)
+                .buildSkippingInvalid(snapshot.days(), submissionDate);
 
-        if (!snapshot.generatedDays().isEmpty()) {
-            activityDayRepository.saveAll(snapshot.generatedDays());
+        List<ActivityDay> persisted = new ArrayList<>(existing);
+        if (persistGenerated && !snapshot.generatedDays().isEmpty()) {
+            persisted.addAll(activityDayRepository.saveAll(snapshot.generatedDays()));
         }
 
-        log.info("Fichero de imputaciones generado para envío {}: {} días, {} filas, {} generados de plantilla, {} huecos",
-                submissionDate, file.dayCount(), file.rowCount(), snapshot.generatedDays().size(), snapshot.gaps().size());
+        Set<String> excluded = built.excludedDayKeys();
+        Map<String, Long> idByKey = new HashMap<>();
+        for (ActivityDay d : persisted) {
+            if (d.getId() != null) {
+                idByKey.put(d.getPerson().getUid() + "|" + d.getActivityDate(), d.getId());
+            }
+        }
+        List<Long> includedIds = snapshot.days().stream()
+                .map(d -> d.uid() + "|" + d.date())
+                .filter(k -> !excluded.contains(k))
+                .map(idByKey::get)
+                .filter(Objects::nonNull)
+                .toList();
 
-        return new Result(file, snapshot.gaps(), snapshot.generatedDays().size());
+        if (!built.problems().isEmpty()) {
+            log.warn("{} día(s) excluidos del fichero por validación:\n{}", built.excludedDays(),
+                    built.problems().stream().map(ValidationProblem::toString).reduce((a, b) -> a + "\n" + b).orElse(""));
+        }
+        log.info("Fichero de imputaciones generado para envío {}: {} días, {} filas, {} generados de plantilla, {} excluidos, {} huecos",
+                submissionDate, built.file().dayCount(), built.file().rowCount(), snapshot.generatedDays().size(),
+                built.excludedDays(), snapshot.gaps().size());
+
+        return new Result(built.file(), snapshot.gaps(), built.problems(), snapshot.generatedDays().size(), includedIds);
     }
 }

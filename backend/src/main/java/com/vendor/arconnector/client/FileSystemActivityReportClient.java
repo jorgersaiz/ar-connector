@@ -1,18 +1,26 @@
 package com.vendor.arconnector.client;
 
 import com.vendor.arconnector.catalog.CatalogName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 /**
- * Cliente de pruebas que lee los catálogos de un directorio local
- * (&lt;dir&gt;/&lt;catalogo&gt;.csv). Permite desarrollar y probar toda la
- * sincronización sin credenciales de BBVA, y cargar ficheros de muestra
- * reales cuando los faciliten.
+ * Cliente de pruebas sobre el sistema de ficheros:
+ *  - los catálogos se leen de &lt;dir&gt;/&lt;catalogo&gt;.csv,
+ *  - los ficheros subidos se escriben en &lt;dir&gt;/outbox/ para poder inspeccionarlos.
+ *
+ * Permite desarrollar y probar toda la cadena sin credenciales de BBVA.
  */
 public class FileSystemActivityReportClient implements ActivityReportClient {
+
+    private static final Logger log = LoggerFactory.getLogger(FileSystemActivityReportClient.class);
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HHmmss");
 
     private final Path directory;
 
@@ -31,5 +39,18 @@ public class FileSystemActivityReportClient implements ActivityReportClient {
         } catch (IOException e) {
             throw new ActivityReportClientException("No se ha podido leer " + file.toAbsolutePath(), e);
         }
+    }
+
+    @Override
+    public void uploadActivitiesFile(byte[] content, String fileName) {
+        Path outbox = directory.resolve("outbox");
+        Path target = outbox.resolve(LocalTime.now().format(TIME) + "_" + fileName);
+        try {
+            Files.createDirectories(outbox);
+            Files.write(target, content);
+        } catch (IOException e) {
+            throw new ActivityReportClientException("No se ha podido escribir el fichero en " + target.toAbsolutePath(), e);
+        }
+        log.info("Modo FILESYSTEM: fichero de imputaciones escrito en {}", target.toAbsolutePath());
     }
 }
