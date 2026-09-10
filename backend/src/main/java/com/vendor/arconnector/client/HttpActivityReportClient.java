@@ -9,6 +9,8 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.time.LocalDate;
+
 /**
  * Cliente HTTP contra la API de vendors de Activity Report, con
  * {@link RestClient} (bloqueante; no hace falta WebFlux para unas pocas
@@ -26,25 +28,12 @@ public class HttpActivityReportClient implements ActivityReportClient {
 
     @Override
     public byte[] downloadCatalogue(CatalogName catalogue) {
-        try {
-            byte[] body = restClient.get()
-                    .uri("/catalogues/{catalogue}", catalogue.apiName())
-                    .accept(MediaType.ALL)
-                    .headers(authenticator::apply)
-                    .retrieve()
-                    .body(byte[].class);
-            if (body == null) {
-                throw new ActivityReportClientException("Activity Report devolvió un cuerpo vacío para el catálogo " + catalogue.apiName());
-            }
-            return body;
-        } catch (RestClientResponseException e) {
-            throw new ActivityReportClientException("Activity Report respondió " + e.getStatusCode().value()
-                    + " al descargar el catálogo " + catalogue.apiName() + ": " + e.getResponseBodyAsString(),
-                    e.getStatusCode().value(), e);
-        } catch (ResourceAccessException e) {
-            throw new ActivityReportClientException("No se ha podido conectar con Activity Report para descargar "
-                    + catalogue.apiName() + ": " + e.getMessage(), e);
-        }
+        return get("/catalogues/{catalogue}", "el catálogo " + catalogue.apiName(), catalogue.apiName());
+    }
+
+    @Override
+    public byte[] downloadActivitiesFeedback(LocalDate submissionDate) {
+        return get("/feedback_file/{date}", "el feedback del envío " + submissionDate, submissionDate.toString());
     }
 
     @Override
@@ -72,6 +61,28 @@ public class HttpActivityReportClient implements ActivityReportClient {
         } catch (ResourceAccessException e) {
             throw new ActivityReportClientException("No se ha podido conectar con Activity Report para subir el fichero de imputaciones: "
                     + e.getMessage(), e);
+        }
+    }
+
+    private byte[] get(String uriTemplate, String what, Object... uriVars) {
+        try {
+            byte[] body = restClient.get()
+                    .uri(uriTemplate, uriVars)
+                    .accept(MediaType.ALL)
+                    .headers(authenticator::apply)
+                    .retrieve()
+                    .body(byte[].class);
+            if (body == null) {
+                throw new ActivityReportClientException("Activity Report devolvió un cuerpo vacío para " + what);
+            }
+            return body;
+        } catch (RestClientResponseException e) {
+            throw new ActivityReportClientException("Activity Report respondió " + e.getStatusCode().value()
+                    + " al descargar " + what + ": " + e.getResponseBodyAsString(),
+                    e.getStatusCode().value(), e);
+        } catch (ResourceAccessException e) {
+            throw new ActivityReportClientException("No se ha podido conectar con Activity Report para descargar "
+                    + what + ": " + e.getMessage(), e);
         }
     }
 }

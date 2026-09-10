@@ -148,8 +148,27 @@ public final class ActivitiesFileBuilder {
             return List.of();
         }
 
-        String personId = PersonIdHasher.hash(day.uid());
+        return dayRows(day, PersonIdHasher.hash(day.uid()), problems);
+    }
 
+    /**
+     * Validaciones de contenido de un día (árbol, proyectos, tiempo, duplicados
+     * de línea), SIN las de fecha ni periodo. Para validar lo que introduce un
+     * usuario o un CSV, que puede referirse a días futuros (vacaciones) que
+     * todavía no se van a enviar.
+     */
+    public List<ValidationProblem> validateContent(DaySubmission day) {
+        List<ValidationProblem> problems = new ArrayList<>();
+        if (day.uid() == null || day.uid().isBlank()) {
+            problems.add(new ValidationProblem("?", day.date(), "UID_BLANK", "uid vacío"));
+            return problems;
+        }
+        dayRows(day, "", problems);
+        return problems;
+    }
+
+    /** Filas de un día ya validado en fecha; deja en {@code problems} los problemas de contenido. */
+    private List<String[]> dayRows(DaySubmission day, String personId, List<ValidationProblem> problems) {
         if (day.kind() == DayKind.NON_WORKING) {
             return List.<String[]>of(nonWorkingRow(day.date(), personId));
         }

@@ -5,6 +5,7 @@
 
 # Ficheros generados por el cliente en modo filesystem
 samples/catalogues/outbox/
+samples/catalogues/feedback/
 
 # Build
 backend/target/

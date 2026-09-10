@@ -141,6 +141,16 @@ class ActivitiesFileBuilderTest {
     }
 
     @Test
+    void elUidSeNormalizaAMayusculasAsiQueDistintaCapitalizacionEsElMismoDia() {
+        ActivitiesFileValidationException ex = failure(
+                DaySubmission.worked("xe12345", LocalDate.parse("2026-03-10"), List.of(LineSubmission.of("03.01", 60))),
+                DaySubmission.worked(" XE12345 ", LocalDate.parse("2026-03-10"), List.of(LineSubmission.of("03.01", 60))));
+
+        assertThat(ex.hasCode("DUPLICATE_DAY")).isTrue();
+        assertThat(ex.getProblems().get(0).uid()).isEqualTo("XE12345");
+    }
+
+    @Test
     void rechazaDiaTrabajadoSinLineas() {
         assertThat(failure(worked("2026-03-10")).hasCode("EMPTY_WORKED_DAY")).isTrue();
     }

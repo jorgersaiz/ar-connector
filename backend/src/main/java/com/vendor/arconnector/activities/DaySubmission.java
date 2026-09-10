@@ -17,6 +17,8 @@ public record DaySubmission(
         List<LineSubmission> lines
 ) {
     public DaySubmission {
+        // El uid se compara y se hashea siempre en mayúsculas (igual que hace BBVA)
+        uid = uid == null ? null : uid.trim().toUpperCase(java.util.Locale.ROOT);
         lines = lines == null ? List.of() : List.copyOf(lines);
     }
 

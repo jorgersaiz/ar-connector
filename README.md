@@ -44,18 +44,25 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `ActivitiesUploadService` | reconstruye el periodo abierto, excluye los días inválidos (no bloquea al equipo), no gasta cuota si el fichero es idéntico al último enviado con éxito hoy, registra cada llamada con el fichero exacto en `api_call` y marca los días enviados |
 | `UploadJob` | envío a las 13:00, 18:00 y 21:00 todos los días (los cortes pueden caer en fin de semana) |
 | `/api/uploads` | `GET /preview` (fichero sin enviar), `POST /run`, `GET /quota`, `GET` histórico, `GET /{id}/file` |
+| `FeedbackService` + `FeedbackMatcher` | descarga el feedback de cada envío OK (a partir de las 3:00 del día siguiente), guarda el fichero y sus filas, y marca el `rejectReason` (APV_xx) en la línea o el día correspondiente; un 404 es "todavía no disponible" y se reintenta |
+| `FeedbackSyncJob` | 4:30 y 10:30; `/api/feedback` para listar, forzar y ver rechazos |
+| `/api/persons` | alta, baja y edición de personas; plantillas por defecto (`/{id}/templates`); días explícitos (`/{id}/days/{fecha}`), validados contra el árbol al guardarlos |
+| `/api/holidays` | festivos por geografía y año |
+| `POST /api/imports/days` | CSV `uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note`; todo o nada; cada día sustituye al que hubiera |
 
 Pendiente (en este orden):
 
 1. Cliente HTTP firmado con la Service Account, cuando BBVA entregue la
    documentación de consumo de APIs (el Requestor va en cabecera). Hoy
    `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
-2. Descarga y procesado del feedback (`APV_xx`) a la mañana siguiente.
-3. Alta de personas y plantillas por API, importación CSV para el manager,
-   avisos de huecos antes del corte, panel web con roles.
-4. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
+2. Login con Entra ID y roles consultor / manager. Hoy la API está abierta.
+3. Panel web Angular: mes del consultor con excepciones; personas, plantillas,
+   huecos y rechazos para el manager.
+4. Avisos de huecos antes del corte (correo o Teams).
+5. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
    de los SDA, estados de issues de Jira, evolutivos, nodos ocultos por persona.
-5. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
+6. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
+7. Infraestructura Azure (Bicep) y pipeline de despliegue.
 
 ## Probar la sincronización sin credenciales
 

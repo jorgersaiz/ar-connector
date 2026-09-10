@@ -27,6 +27,25 @@ public interface ActivityDayRepository extends JpaRepository<ActivityDay, Long> 
             """)
     List<ActivityDay> findInRangeWithLines(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    /** Días de una persona en un rango, con líneas. */
+    @Query("""
+            select distinct d from ActivityDay d
+            left join fetch d.lines
+            where d.person = :person and d.activityDate between :from and :to
+            order by d.activityDate
+            """)
+    List<ActivityDay> findByPersonInRangeWithLines(@Param("person") Person person,
+                                                   @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** Días que fueron en el fichero enviado en esa fecha (para aplicarles su feedback). */
+    @Query("""
+            select distinct d from ActivityDay d
+            join fetch d.person
+            left join fetch d.lines
+            where d.lastSentDate = :sentDate
+            """)
+    List<ActivityDay> findByLastSentDateWithLines(@Param("sentDate") LocalDate sentDate);
+
     /** Marca los días incluidos en un fichero enviado con éxito. */
     @Transactional
     @Modifying

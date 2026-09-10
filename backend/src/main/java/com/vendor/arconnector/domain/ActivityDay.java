@@ -48,6 +48,14 @@ public class ActivityDay {
     @Column(name = "last_sent_date")
     private LocalDate lastSentDate;
 
+    /** Código APV_xx si Activity Report rechazó el día como no imputable (fila sin actividad). */
+    @Column(name = "reject_reason", length = 32)
+    private String rejectReason;
+
+    /** Fecha de envío a la que corresponde el último feedback aplicado a este día. */
+    @Column(name = "last_feedback_date")
+    private LocalDate lastFeedbackDate;
+
     @OneToMany(mappedBy = "day", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC, id ASC")
     private List<ActivityLine> lines = new ArrayList<>();
@@ -79,7 +87,22 @@ public class ActivityDay {
         return line;
     }
 
+    public void clearLines() {
+        lines.clear();
+    }
+
     public int totalMinutes() {
         return lines.stream().mapToInt(ActivityLine::getMinutes).sum();
+    }
+
+    /** true si el último feedback rechazó el día o alguna de sus líneas. */
+    public boolean hasRejections() {
+        return rejectReason != null || lines.stream().anyMatch(l -> l.getRejectReason() != null);
+    }
+
+    /** Limpia el resultado del feedback anterior antes de aplicar uno nuevo. */
+    public void clearFeedback() {
+        rejectReason = null;
+        lines.forEach(l -> l.setRejectReason(null));
     }
 }

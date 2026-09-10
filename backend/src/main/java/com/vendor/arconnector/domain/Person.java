@@ -62,12 +62,24 @@ public class Person {
     private Instant updatedAt = Instant.now();
 
     public Person(String uid, String email, String displayName, String gpsCode, String geography, LocalDate startDate) {
-        this.uid = uid;
+        setUid(uid);
         this.email = email;
         this.displayName = displayName;
         this.gpsCode = gpsCode;
         this.geography = geography;
         this.startDate = startDate;
+    }
+
+    /**
+     * El uid se guarda siempre en mayúsculas: es como lo hashea BBVA y así
+     * "xe123" y "XE123" no pueden convertirse en dos personas con el mismo person_id.
+     */
+    public void setUid(String uid) {
+        this.uid = normalizeUid(uid);
+    }
+
+    public static String normalizeUid(String uid) {
+        return uid == null ? null : uid.trim().toUpperCase(java.util.Locale.ROOT);
     }
 
     /** true si la persona está en perímetro (activa y dentro de su rango de fechas) ese día. */

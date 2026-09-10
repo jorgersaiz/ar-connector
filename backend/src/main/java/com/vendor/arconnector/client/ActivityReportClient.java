@@ -2,6 +2,8 @@ package com.vendor.arconnector.client;
 
 import com.vendor.arconnector.catalog.CatalogName;
 
+import java.time.LocalDate;
+
 /**
  * Acceso a la API de vendors de Activity Report. Los servicios dependen de
  * esta interfaz, no de HTTP, para poder probar con ficheros locales.
@@ -18,4 +20,12 @@ public interface ActivityReportClient {
      * @throws ActivityReportClientException si la respuesta no es 2xx o no hay conexión
      */
     void uploadActivitiesFile(byte[] content, String fileName);
+
+    /**
+     * GET /feedback_file/{date}: feedback del fichero de actividades enviado en
+     * esa fecha. Disponible a partir de las 3:00 del día siguiente.
+     *
+     * @throws ActivityReportClientException con httpStatus 404 si todavía no hay fichero
+     */
+    byte[] downloadActivitiesFeedback(LocalDate submissionDate);
 }

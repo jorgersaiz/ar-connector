@@ -34,6 +34,8 @@ jobs:
     cron: "0 0 4 * * *"   # los catálogos están disponibles a partir de las 3:00
   upload:
     cron: "0 0 13,18,21 * * *"   # todos los días: los cortes (19 y 4) pueden caer en fin de semana
+  feedback-sync:
+    cron: "0 30 4,10 * * *"      # el feedback está disponible a partir de las 3:00; segundo intento a media mañana
 
 logging:
   level:
