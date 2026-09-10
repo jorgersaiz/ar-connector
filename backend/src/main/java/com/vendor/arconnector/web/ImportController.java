@@ -1,6 +1,7 @@
 package com.vendor.arconnector.web;
 
 import com.vendor.arconnector.service.DayImportService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -13,6 +14,7 @@ import java.io.UncheckedIOException;
 /** Importación masiva de días desde CSV (manager). */
 @RestController
 @RequestMapping("/api/imports")
+@PreAuthorize("hasRole('MANAGER')")
 public class ImportController {
 
     private final DayImportService importService;

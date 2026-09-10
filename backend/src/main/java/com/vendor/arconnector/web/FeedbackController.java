@@ -7,6 +7,7 @@ import com.vendor.arconnector.service.FeedbackService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -17,6 +18,7 @@ import java.util.List;
 /** Feedback de Activity Report: ficheros descargados, rechazos y sincronización manual. */
 @RestController
 @RequestMapping("/api/feedback")
+@PreAuthorize("hasRole('MANAGER')")
 public class FeedbackController {
 
     public record FeedbackFileDto(LocalDate submissionDate, Instant downloadedAt, int rowCount, int rejectedCount, int matchedCount) {

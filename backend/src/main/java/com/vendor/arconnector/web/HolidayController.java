@@ -5,6 +5,7 @@ import com.vendor.arconnector.repository.HolidayRepository;
 import com.vendor.arconnector.web.dto.HolidayDto;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -39,6 +40,7 @@ public class HolidayController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('MANAGER')")
     @ResponseStatus(HttpStatus.CREATED)
     public HolidayDto create(@Valid @RequestBody HolidayDto dto) {
         Holiday h = new Holiday(dto.geography().trim().toUpperCase(), dto.date(), dto.description().trim(), dto.scope());
@@ -46,6 +48,7 @@ public class HolidayController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('MANAGER')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         if (!repository.existsById(id)) {

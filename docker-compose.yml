@@ -33,10 +33,20 @@ services:
       # Mientras no haya credenciales, AR_CLIENT=filesystem lee los catálogos de ./samples/catalogues
       AR_CLIENT: ${AR_CLIENT:-http}
       AR_LOCAL_DIR: /app/samples/catalogues
+      # Usuario MANAGER inicial del panel (solo se crea la primera vez)
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@arktic.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin1234}
     volumes:
       - ./samples:/app/samples
     ports:
       - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
 
 volumes:
   db-data:

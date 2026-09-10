@@ -1,15 +1,19 @@
 package com.vendor.arconnector.web;
 
 import com.vendor.arconnector.activities.DaySubmission;
+import com.vendor.arconnector.activities.ModifiablePeriodPolicy;
+import com.vendor.arconnector.activities.MonthViewBuilder;
 import com.vendor.arconnector.domain.*;
 import com.vendor.arconnector.repository.ActivityDayRepository;
 import com.vendor.arconnector.repository.DefaultTemplateRepository;
 import com.vendor.arconnector.repository.PersonRepository;
 import com.vendor.arconnector.service.DayValidationService;
+import com.vendor.arconnector.service.MonthViewService;
 import com.vendor.arconnector.web.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,28 +21,40 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 /**
  * Gestión de personas en perímetro, sus plantillas por defecto y sus días
  * explícitos (excepciones a la plantilla).
+ *
+ * Autorización: los managers pueden todo; un consultor solo puede ver y
+ * editar los días de su propia persona ({@code @access.self(#id)}).
  */
 @RestController
 @RequestMapping("/api/persons")
+@PreAuthorize("hasRole('MANAGER')")
 public class PersonController {
+
+    public record MonthViewDto(Long personId, int year, int month, List<MonthViewBuilder.DayView> days) {
+    }
 
     private final PersonRepository personRepository;
     private final DefaultTemplateRepository templateRepository;
     private final ActivityDayRepository activityDayRepository;
     private final DayValidationService validationService;
+    private final MonthViewService monthViewService;
+    private final ModifiablePeriodPolicy periodPolicy = new ModifiablePeriodPolicy();
     private final Clock clock;
 
     public PersonController(PersonRepository personRepository, DefaultTemplateRepository templateRepository,
-                            ActivityDayRepository activityDayRepository, DayValidationService validationService, Clock clock) {
+                            ActivityDayRepository activityDayRepository, DayValidationService validationService,
+                            MonthViewService monthViewService, Clock clock) {
         this.personRepository = personRepository;
         this.templateRepository = templateRepository;
         this.activityDayRepository = activityDayRepository;
         this.validationService = validationService;
+        this.monthViewService = monthViewService;
         this.clock = clock;
     }
 
@@ -53,6 +69,7 @@ public class PersonController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('MANAGER') or @access.self(#id)")
     public PersonDto get(@PathVariable Long id) {
         return PersonDto.from(find(id));
     }
@@ -96,6 +113,7 @@ public class PersonController {
     // ------------------------------------------------------------------ plantillas
 
     @GetMapping("/{id}/templates")
+    @PreAuthorize("hasRole('MANAGER') or @access.self(#id)")
     public List<TemplateDto> templates(@PathVariable Long id) {
         return templateRepository.findByPersonWithLines(find(id)).stream().map(TemplateDto::from).toList();
     }
@@ -129,9 +147,17 @@ public class PersonController {
         templateRepository.delete(t);
     }
 
-    // ------------------------------------------------------------------ días explícitos
+    // ------------------------------------------------------------------ mes y días explícitos
+
+    @GetMapping("/{id}/month")
+    @PreAuthorize("hasRole('MANAGER') or @access.self(#id)")
+    public MonthViewDto month(@PathVariable Long id, @RequestParam int year, @RequestParam int month) {
+        Person person = find(id);
+        return new MonthViewDto(person.getId(), year, month, monthViewService.month(person, YearMonth.of(year, month)));
+    }
 
     @GetMapping("/{id}/days")
+    @PreAuthorize("hasRole('MANAGER') or @access.self(#id)")
     public List<DayDto> days(@PathVariable Long id,
                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -140,11 +166,13 @@ public class PersonController {
 
     /** Crea o sustituye el día completo de la persona (una excepción a su plantilla). */
     @PutMapping("/{id}/days/{date}")
+    @PreAuthorize("hasRole('MANAGER') or @access.self(#id)")
     @Transactional
     public DayDto upsertDay(@PathVariable Long id,
                             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                             @Valid @RequestBody DayUpsertDto dto) {
         Person person = find(id);
+        requireOpenPeriod(date);
         if (dto.kind() == DayKind.NON_WORKING && !dto.linesOrEmpty().isEmpty()) {
             throw new IllegalArgumentException("Un día no imputable no puede llevar líneas");
         }
@@ -168,11 +196,21 @@ public class PersonController {
 
     /** Elimina el día explícito: vuelve a aplicar la plantilla por defecto (o queda como hueco). */
     @DeleteMapping("/{id}/days/{date}")
+    @PreAuthorize("hasRole('MANAGER') or @access.self(#id)")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void deleteDay(@PathVariable Long id, @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Person person = find(id);
+        requireOpenPeriod(date);
         activityDayRepository.findByPersonAndActivityDate(person, date).ifPresent(activityDayRepository::delete);
+    }
+
+    /** BBVA ya no admitiría ese día: el último envío posible fue el 19 (1ª quincena) o el 4 del mes siguiente (2ª). */
+    private void requireOpenPeriod(LocalDate date) {
+        LocalDate last = periodPolicy.lastSubmissionDate(date);
+        if (LocalDate.now(clock).isAfter(last)) {
+            throw new IllegalArgumentException("El periodo de " + date + " está cerrado en Activity Report desde el " + last.plusDays(1));
+        }
     }
 
     private Person find(Long id) {

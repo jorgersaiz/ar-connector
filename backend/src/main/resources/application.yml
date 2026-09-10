@@ -28,6 +28,12 @@ activity-report:
   client: ${AR_CLIENT:http}
   local-dir: ${AR_LOCAL_DIR:../samples/catalogues}
 
+# Primer usuario MANAGER del panel; solo se crea si la tabla app_user está vacía.
+auth:
+  bootstrap:
+    email: ${ADMIN_EMAIL:admin@arktic.local}
+    password: ${ADMIN_PASSWORD:admin1234}
+
 jobs:
   timezone: Europe/Madrid
   catalog-sync:

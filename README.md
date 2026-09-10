@@ -49,16 +49,18 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `/api/persons` | alta, baja y edición de personas; plantillas por defecto (`/{id}/templates`); días explícitos (`/{id}/days/{fecha}`), validados contra el árbol al guardarlos |
 | `/api/holidays` | festivos por geografía y año |
 | `POST /api/imports/days` | CSV `uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note`; todo o nada; cada día sustituye al que hubiera |
+| Login provisional (`SecurityConfig`, `/api/auth`) | sesión con cookie, usuarios en `app_user` con BCrypt, roles MANAGER / CONSULTANT; un consultor solo ve y edita su propia persona. Se sustituirá por Entra ID |
+| `GET /api/persons/{id}/month` | vista de mes para el panel: qué se enviaría cada día (explícito, plantilla, festivo local, nada), huecos, días bloqueados por corte y resultado del último feedback |
+| Panel Angular (`frontend/`) | login, "Mi mes" para el consultor, y para el manager personas, plantillas, envíos, rechazos, importación CSV, catálogos, festivos y usuarios. Contrato en `docs/panel-api.md` |
 
 Pendiente (en este orden):
 
 1. Cliente HTTP firmado con la Service Account, cuando BBVA entregue la
    documentación de consumo de APIs (el Requestor va en cabecera). Hoy
    `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
-2. Login con Entra ID y roles consultor / manager. Hoy la API está abierta.
-3. Panel web Angular: mes del consultor con excepciones; personas, plantillas,
-   huecos y rechazos para el manager.
-4. Avisos de huecos antes del corte (correo o Teams).
+2. Sustituir el login provisional por Entra ID (y activar CSRF antes de
+   exponer el panel fuera de la red de Arktic).
+3. Avisos de huecos antes del corte (correo o Teams).
 5. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
    de los SDA, estados de issues de Jira, evolutivos, nodos ocultos por persona.
 6. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
@@ -109,6 +111,8 @@ En Windows con PowerShell o cmd: `.\mvnw.cmd test`.
 docker compose up --build
 ```
 
+- Panel: http://localhost:4200 (usuario inicial `admin@arktic.local` / `admin1234`,
+  configurable con `ADMIN_EMAIL` / `ADMIN_PASSWORD`; solo se crea si no hay usuarios)
 - API backend: http://localhost:8080
 - PostgreSQL: localhost:5432 (`ar_connector` / `changeme`)
 
