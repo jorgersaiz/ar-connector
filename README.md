@@ -52,6 +52,8 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | Login provisional (`SecurityConfig`, `/api/auth`) | sesión con cookie, usuarios en `app_user` con BCrypt, roles MANAGER / CONSULTANT; un consultor solo ve y edita su propia persona. Se sustituirá por Entra ID |
 | `GET /api/persons/{id}/month` | vista de mes para el panel: qué se enviaría cada día (explícito, plantilla, festivo local, nada), huecos, días bloqueados por corte y resultado del último feedback |
 | Panel Angular (`frontend/`) | login, "Mi mes" para el consultor, y para el manager personas, plantillas, envíos, rechazos, importación CSV, catálogos, festivos y usuarios. Contrato en `docs/panel-api.md` |
+| `DashboardService` + `GET /api/dashboard` | situación del periodo para el manager: quincenas abiertas y sus cortes, cuota, último envío, feedback pendiente y, por persona, huecos, rechazos y días excluidos. Pantalla "Situación", página de inicio del manager |
+| `NotificationPlanner` + `NotificationService` | avisos diarios (9:00): recordatorio de huecos a la persona cuando el corte está a `NOTIFY_DAYS_BEFORE_CUTOFF` días (2 por defecto), rechazos pendientes, y resumen a los managers. Un aviso por destinatario, tipo y día. Sin SMTP (`MAIL_HOST`, `MAIL_ENABLED=true`) solo se registran en `notification` |
 | `CatalogRules` | reglas que dependen de catálogos, aplicadas al guardar y al generar el fichero: SDA existente y vigente, márgenes en trimestres para Ended (desde `end_date`) y On hold (desde `last_modified_status_date`) según `countries`, SDA e issues de evolutivo solo en actividades de evolutivo, issues existentes y del SDA indicado (catálogo o histórico), Discarded solo hasta el día del cambio, Deployed hasta 30 días después, conceptualization time solo en su actividad, proyectos no SDA del catálogo, nodos ocultos por persona y día |
 
 Pendiente (en este orden):
@@ -61,10 +63,13 @@ Pendiente (en este orden):
    `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
 2. Sustituir el login provisional por Entra ID (y activar CSRF antes de
    exponer el panel fuera de la red de Arktic).
-3. Panel de situación del periodo para el manager y avisos de huecos antes
-   del corte (el correo necesita un SMTP de Arktic).
-4. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
+3. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
+4. Tests de integración contra PostgreSQL (Testcontainers).
 5. Infraestructura Azure (Bicep) y pipeline de despliegue.
+
+Datos de infraestructura de Arktic que harán falta: SMTP para los avisos
+(`MAIL_HOST`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`), URL pública del
+panel (`PANEL_URL`) y el registro de la aplicación en Entra ID.
 
 ## Probar la sincronización sin credenciales
 

@@ -43,10 +43,11 @@ export class AuthService {
     this.me.set(null);
   }
 
+  /** Consultores (con persona asociada) → su mes; gestores → situación del periodo. */
   defaultRoute(): string {
     const me = this.me();
     if (me?.personId != null) return '/mi-mes';
-    if (me?.role === 'MANAGER') return '/personas';
+    if (me?.role === 'MANAGER') return '/situacion';
     return '/login';
   }
 }

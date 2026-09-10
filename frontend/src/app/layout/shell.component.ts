@@ -37,6 +37,9 @@ import { AuthService } from '../core/auth.service';
             </a>
           }
           @if (auth.isManager()) {
+            <a mat-list-item routerLink="/situacion" routerLinkActive="active">
+              <mat-icon matListItemIcon>dashboard</mat-icon><span matListItemTitle>Situación</span>
+            </a>
             <a mat-list-item routerLink="/personas" routerLinkActive="active">
               <mat-icon matListItemIcon>people</mat-icon><span matListItemTitle>Personas</span>
             </a>

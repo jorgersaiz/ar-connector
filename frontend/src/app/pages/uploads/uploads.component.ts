@@ -46,7 +46,7 @@ const STATUS_LABEL: Record<UploadStatus, string> = {
           @if (quota(); as q) {
             <div class="stats">
               <div class="stat"><span class="value" [class.warn-text]="quotaExhausted()">{{ q.callsToday }} / {{ q.limit }}</span><span class="label">Llamadas hoy ({{ q.day | date: 'dd/MM/yyyy' }})</span></div>
-              <div class="stat"><span class="value">{{ q.lastOk ? (q.lastOk | date: 'dd/MM/yyyy HH:mm') : '—' }}</span><span class="label">Último envío correcto</span></div>
+              <div class="stat"><span class="value">{{ q.lastOk === null ? '—' : (q.lastOk ? 'OK' : 'KO') }}</span><span class="label">Última llamada de hoy</span></div>
               <div class="stat"><span class="value mono" style="font-size: 16px; padding-top: 8px">{{ q.channel }}</span><span class="label">Canal</span></div>
             </div>
           } @else {

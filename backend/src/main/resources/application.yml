@@ -13,8 +13,28 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  mail:
+    # SMTP de Arktic para los avisos; sin host, los avisos solo se registran.
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:true}
+
 server:
   port: 8080
+
+# URL pública del panel, para los enlaces de los avisos
+panel:
+  url: ${PANEL_URL:http://localhost:4200}
+
+notifications:
+  days-before-cutoff: ${NOTIFY_DAYS_BEFORE_CUTOFF:2}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:ar-connector@arktic.local}
 
 # Datos que el proveedor comunica a los administradores de Activity Report
 # (entidad "Vendors" del documento). Si no cuadran, BBVA rechaza la llamada.
@@ -42,6 +62,8 @@ jobs:
     cron: "0 0 13,18,21 * * *"   # todos los días: los cortes (19 y 4) pueden caer en fin de semana
   feedback-sync:
     cron: "0 30 4,10 * * *"      # el feedback está disponible a partir de las 3:00; segundo intento a media mañana
+  notifications:
+    cron: "0 0 9 * * *"          # avisos de huecos y rechazos, tras catálogos y feedback
 
 logging:
   level:

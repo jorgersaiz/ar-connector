@@ -22,7 +22,7 @@ export const managerGuard: CanActivateFn = () => {
   );
 };
 
-/** Ruta raíz: manda a /mi-mes o /personas según el usuario. */
+/** Ruta raíz: manda a /mi-mes o /situacion según el usuario. */
 export const homeRedirectGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);

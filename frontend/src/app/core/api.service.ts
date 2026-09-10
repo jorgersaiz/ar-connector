@@ -2,10 +2,10 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
-  CatalogStatus, CatalogSyncResult, Day, DayUpsert, FeedbackFile, FeedbackRow, FeedbackSyncResult,
-  Holiday, HolidayCreate, ImportResult, JiraIssue, Me, MonthView, NonSdaProject, Person, PersonInput,
-  SdaProject, TaskType, Template, TemplateCreate, UploadPreview, UploadQuota, UploadRecord,
-  UploadRunResult, User, UserCreate, UserUpdate,
+  CatalogStatus, CatalogSyncResult, Dashboard, Day, DayUpsert, FeedbackFile, FeedbackRow, FeedbackSyncResult,
+  Holiday, HolidayCreate, ImportResult, JiraIssue, Me, MonthView, NonSdaProject, Notification, NotificationConfig,
+  NotificationRunResult, Person, PersonInput, SdaProject, TaskType, Template, TemplateCreate, UploadPreview,
+  UploadQuota, UploadRecord, UploadRunResult, User, UserCreate, UserUpdate,
 } from './models';
 
 /** Cliente tipado de la API del panel (docs/panel-api.md). Todas las rutas son relativas a /api. */
@@ -142,6 +142,22 @@ export class ApiService {
   }
   deleteHoliday(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/holidays/${id}`);
+  }
+
+  // ---- Situación del periodo ----
+  dashboard(): Observable<Dashboard> {
+    return this.http.get<Dashboard>(`${this.base}/dashboard`);
+  }
+
+  // ---- Avisos ----
+  notifications(limit = 100): Observable<Notification[]> {
+    return this.http.get<Notification[]>(`${this.base}/notifications`, { params: this.params({ limit }) });
+  }
+  runNotifications(): Observable<NotificationRunResult> {
+    return this.http.post<NotificationRunResult>(`${this.base}/notifications/run`, {});
+  }
+  notificationsConfig(): Observable<NotificationConfig> {
+    return this.http.get<NotificationConfig>(`${this.base}/notifications/config`);
   }
 
   // ---- Importación CSV ----

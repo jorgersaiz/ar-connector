@@ -101,3 +101,33 @@ POST `/holidays` y DELETE `/holidays/{id}` (MANAGER).
 
 POST `/imports/days`, multipart con el campo `file` → `{daysCreated, daysReplaced, lines, persons}`.
 Formato: `uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note`.
+
+## Situación del periodo (MANAGER)
+
+GET `/dashboard` →
+
+```
+{
+  today, submissionDate,
+  periods: [{label, from, to, lastSubmissionDate, daysLeft}],      // quincenas todavía abiertas, en orden
+  quota: {callsToday, limit, lastOk},
+  lastUpload: {calledAt, submissionDate, ok, dayCount, rowCount, errorMessage} | null,
+  pendingFeedbackDates: [date],
+  totals: {persons, personsWithGaps, gaps, personsWithRejections, rejections, excludedDays},
+  persons: [{personId, uid, displayName, email, hasTemplate,
+             gapDates: [date], nextGapDeadline: date|null,
+             rejectedDates: [date], excludedDates: [date], problemCodes: [string]}]
+}
+```
+
+`persons` solo incluye a quien tiene algo que resolver (huecos, rechazos o días excluidos), ordenado por fecha límite más próxima.
+
+## Avisos (MANAGER)
+
+| Ruta | Respuesta |
+|---|---|
+| GET `/notifications?limit=100` | `[{id, sentAt, channel: 'LOG'|'EMAIL', kind: 'GAPS_REMINDER'|'REJECTIONS'|'MANAGER_SUMMARY', recipientEmail, personId, personDisplayName, subject, body, deadline}]` |
+| POST `/notifications/run` | `{sent, skipped, channel, details: [{kind, recipientEmail, subject}]}` — planifica y envía los avisos de hoy (los ya enviados hoy se saltan) |
+| GET `/notifications/config` | `{channel, daysBeforeCutoff, mailEnabled}` |
+
+Con `channel = 'LOG'` los avisos se registran pero no se envía correo (no hay SMTP configurado).

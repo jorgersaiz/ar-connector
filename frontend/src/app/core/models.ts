@@ -217,7 +217,7 @@ export interface UploadQuota {
   day: string;
   callsToday: number;
   limit: number;
-  lastOk: string | null;
+  lastOk: boolean | null;
 }
 
 export interface UploadRecord {
@@ -294,4 +294,102 @@ export interface ApiError {
   message?: string;
   errors?: string[];
   problems?: Problem[];
+}
+
+// ---- Situación del periodo (dashboard) ----
+
+export interface DashboardPeriod {
+  /** Ej. "1ª quincena de septiembre 2026" */
+  label: string;
+  from: string;
+  to: string;
+  lastSubmissionDate: string;
+  daysLeft: number;
+}
+
+export interface DashboardQuota {
+  callsToday: number;
+  limit: number;
+  lastOk: boolean | null;
+}
+
+export interface DashboardLastUpload {
+  calledAt: string;
+  submissionDate: string | null;
+  ok: boolean;
+  dayCount: number | null;
+  rowCount: number | null;
+  errorMessage: string | null;
+}
+
+export interface DashboardTotals {
+  persons: number;
+  personsWithGaps: number;
+  gaps: number;
+  personsWithRejections: number;
+  rejections: number;
+  excludedDays: number;
+}
+
+export interface DashboardPerson {
+  /** id numérico de la persona (Person.id), para enlazar a /personas/:id/mes */
+  personId: number;
+  uid: string;
+  displayName: string;
+  email: string;
+  hasTemplate: boolean;
+  gapDates: string[];
+  nextGapDeadline: string | null;
+  rejectedDates: string[];
+  excludedDates: string[];
+  problemCodes: string[];
+}
+
+export interface Dashboard {
+  today: string;
+  submissionDate: string;
+  periods: DashboardPeriod[];
+  quota: DashboardQuota;
+  lastUpload: DashboardLastUpload | null;
+  pendingFeedbackDates: string[];
+  totals: DashboardTotals;
+  /** Solo personas con algo que resolver, ordenadas por fecha límite más próxima */
+  persons: DashboardPerson[];
+}
+
+// ---- Avisos ----
+
+export type NotificationChannel = 'LOG' | 'EMAIL';
+export type NotificationKind = 'GAPS_REMINDER' | 'REJECTIONS' | 'MANAGER_SUMMARY';
+
+export interface Notification {
+  id: number;
+  sentAt: string;
+  channel: NotificationChannel;
+  kind: NotificationKind;
+  recipientEmail: string;
+  personId: number | null;
+  personDisplayName: string | null;
+  subject: string;
+  body: string;
+  deadline: string | null;
+}
+
+export interface NotificationRunDetail {
+  kind: NotificationKind;
+  recipientEmail: string;
+  subject: string;
+}
+
+export interface NotificationRunResult {
+  sent: number;
+  skipped: number;
+  channel: NotificationChannel;
+  details: NotificationRunDetail[];
+}
+
+export interface NotificationConfig {
+  channel: NotificationChannel;
+  daysBeforeCutoff: number;
+  mailEnabled: boolean;
 }

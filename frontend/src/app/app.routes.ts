@@ -11,6 +11,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', canActivate: [homeRedirectGuard], children: [] },
       { path: 'mi-mes', loadComponent: () => import('./pages/month/month.component').then((m) => m.MonthComponent) },
+      { path: 'situacion', canActivate: [managerGuard], loadComponent: () => import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent) },
       {
         path: 'personas',
         canActivate: [managerGuard],
