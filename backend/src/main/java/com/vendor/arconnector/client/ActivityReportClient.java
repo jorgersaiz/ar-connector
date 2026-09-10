@@ -28,4 +28,14 @@ public interface ActivityReportClient {
      * @throws ActivityReportClientException con httpStatus 404 si todavía no hay fichero
      */
     byte[] downloadActivitiesFeedback(LocalDate submissionDate);
+
+    /** POST /upload_user_registration_file: fichero "uids" con las personas a registrar (sin duplicados). */
+    void uploadUserRegistrationFile(byte[] content, String fileName);
+
+    /**
+     * GET /user_registration_feedback_file/{date}: feedback del registro enviado en esa fecha.
+     *
+     * @throws ActivityReportClientException con httpStatus 404 si todavia no hay fichero
+     */
+    byte[] downloadUserRegistrationFeedback(LocalDate submissionDate);
 }

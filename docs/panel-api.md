@@ -131,3 +131,22 @@ GET `/dashboard` →
 | GET `/notifications/config` | `{channel, daysBeforeCutoff, mailEnabled}` |
 
 Con `channel = 'LOG'` los avisos se registran pero no se envía correo (no hay SMTP configurado).
+
+## Registro de usuarios en Activity Report (MANAGER)
+
+`Person` incluye ahora `registrationStatus: 'NOT_REQUIRED'|'PENDING'|'SENT'|'REGISTERED'|'REJECTED'`,
+`registrationSentDate` y `registrationReason` (APV_UR_xx). En POST/PUT de persona se puede enviar
+`registrationStatus` solo con `PENDING` (pedir alta) o `NOT_REQUIRED` (desistir); el resto los pone el conector.
+
+| Ruta | Respuesta |
+|---|---|
+| GET `/registrations` | `{persons: Person[] (con estado distinto de NOT_REQUIRED), quota: {callsToday, limit, lastOk}, lastUpload: ApiCall|null, pendingFeedbackDates: [date]}` |
+| POST `/registrations/run` | `{status: 'SENT'|'SKIPPED_QUOTA'|'NOTHING_TO_SEND'|'FAILED', submissionDate, count, apiCallId, error}` |
+| POST `/registrations/feedback/sync` | `[{submissionDate, status: 'APPLIED'|'NOT_AVAILABLE_YET'|'FAILED', rowCount, registered, rejected, unmatched, error}]` |
+| POST `/registrations/persons/{id}/request` | `Person` (pasa a PENDING; 400 si está SENT o REGISTERED) |
+| POST `/registrations/persons/{id}/cancel` | `Person` (pasa a NOT_REQUIRED; 400 si está SENT) |
+
+## CSRF
+
+El backend emite la cookie `XSRF-TOKEN` y exige la cabecera `X-XSRF-TOKEN` en POST/PUT/DELETE.
+Angular la envía automáticamente en peticiones relativas; no hay que hacer nada en el panel.

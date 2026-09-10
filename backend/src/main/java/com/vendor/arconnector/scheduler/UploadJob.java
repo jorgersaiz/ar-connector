@@ -2,6 +2,7 @@ package com.vendor.arconnector.scheduler;
 
 import com.vendor.arconnector.service.ActivitiesUploadService;
 import com.vendor.arconnector.service.UploadOutcome;
+import com.vendor.arconnector.service.UserRegistrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,9 +26,11 @@ public class UploadJob {
     private static final Logger log = LoggerFactory.getLogger(UploadJob.class);
 
     private final ActivitiesUploadService uploadService;
+    private final UserRegistrationService registrationService;
 
-    public UploadJob(ActivitiesUploadService uploadService) {
+    public UploadJob(ActivitiesUploadService uploadService, UserRegistrationService registrationService) {
         this.uploadService = uploadService;
+        this.registrationService = registrationService;
     }
 
     @Scheduled(cron = "${jobs.upload.cron:0 0 13,18,21 * * *}", zone = "${jobs.timezone:Europe/Madrid}")
@@ -39,6 +42,12 @@ public class UploadJob {
                     outcome.status(), outcome.dayCount(), outcome.rowCount(), outcome.excludedDays(), outcome.gaps().size());
         } catch (RuntimeException e) {
             log.error("Job de envío de imputaciones: error no controlado", e);
+        }
+        try {
+            UserRegistrationService.UploadResult r = registrationService.uploadNow();
+            log.info("Job de registro de usuarios: {} ({} persona(s))", r.status(), r.count());
+        } catch (RuntimeException e) {
+            log.error("Job de registro de usuarios: error no controlado", e);
         }
     }
 }

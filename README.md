@@ -54,6 +54,8 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | Panel Angular (`frontend/`) | login, "Mi mes" para el consultor, y para el manager personas, plantillas, envíos, rechazos, importación CSV, catálogos, festivos y usuarios. Contrato en `docs/panel-api.md` |
 | `DashboardService` + `GET /api/dashboard` | situación del periodo para el manager: quincenas abiertas y sus cortes, cuota, último envío, feedback pendiente y, por persona, huecos, rechazos y días excluidos. Pantalla "Situación", página de inicio del manager |
 | `NotificationPlanner` + `NotificationService` | avisos diarios (9:00): recordatorio de huecos a la persona cuando el corte está a `NOTIFY_DAYS_BEFORE_CUTOFF` días (2 por defecto), rechazos pendientes, y resumen a los managers. Un aviso por destinatario, tipo y día. Sin SMTP (`MAIL_HOST`, `MAIL_ENABLED=true`) solo se registran en `notification` |
+| CSRF (`SecurityConfig`) | cookie `XSRF-TOKEN` + cabecera `X-XSRF-TOKEN` (receta de Spring Security para SPA); Angular la envía sola |
+| `UserRegistrationService` + `/api/registrations` | alta de personas nuevas en Activity Report: fichero `uids` con las PENDING (cuota propia), feedback `uids;uid;reason` al día siguiente que las deja REGISTERED (ajustando la fecha de alta al día siguiente del envío) o REJECTED con su APV_UR_xx. Pantalla "Altas en AR" |
 | `CatalogRules` | reglas que dependen de catálogos, aplicadas al guardar y al generar el fichero: SDA existente y vigente, márgenes en trimestres para Ended (desde `end_date`) y On hold (desde `last_modified_status_date`) según `countries`, SDA e issues de evolutivo solo en actividades de evolutivo, issues existentes y del SDA indicado (catálogo o histórico), Discarded solo hasta el día del cambio, Deployed hasta 30 días después, conceptualization time solo en su actividad, proyectos no SDA del catálogo, nodos ocultos por persona y día |
 
 Pendiente (en este orden):
@@ -61,11 +63,9 @@ Pendiente (en este orden):
 1. Cliente HTTP firmado con la Service Account, cuando BBVA entregue la
    documentación de consumo de APIs (el Requestor va en cabecera). Hoy
    `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
-2. Sustituir el login provisional por Entra ID (y activar CSRF antes de
-   exponer el panel fuera de la red de Arktic).
-3. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
-4. Tests de integración contra PostgreSQL (Testcontainers).
-5. Infraestructura Azure (Bicep) y pipeline de despliegue.
+2. Sustituir el login provisional por Entra ID.
+3. Tests de integración contra PostgreSQL (Testcontainers).
+4. Infraestructura Azure (Bicep) y pipeline de despliegue.
 
 Datos de infraestructura de Arktic que harán falta: SMTP para los avisos
 (`MAIL_HOST`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`), URL pública del

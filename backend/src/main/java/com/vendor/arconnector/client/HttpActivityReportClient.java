@@ -38,6 +38,20 @@ public class HttpActivityReportClient implements ActivityReportClient {
 
     @Override
     public void uploadActivitiesFile(byte[] content, String fileName) {
+        upload("/upload_activities_file", "el fichero de imputaciones", content, fileName);
+    }
+
+    @Override
+    public void uploadUserRegistrationFile(byte[] content, String fileName) {
+        upload("/upload_user_registration_file", "el fichero de registro de usuarios", content, fileName);
+    }
+
+    @Override
+    public byte[] downloadUserRegistrationFeedback(LocalDate submissionDate) {
+        return get("/user_registration_feedback_file/{date}", "el feedback del registro de usuarios del " + submissionDate, submissionDate.toString());
+    }
+
+    private void upload(String path, String what, byte[] content, String fileName) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new ByteArrayResource(content) {
             @Override
@@ -47,7 +61,7 @@ public class HttpActivityReportClient implements ActivityReportClient {
         });
         try {
             restClient.post()
-                    .uri("/upload_activities_file")
+                    .uri(path)
                     .headers(authenticator::apply)
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(body)
@@ -56,10 +70,10 @@ public class HttpActivityReportClient implements ActivityReportClient {
         } catch (RestClientResponseException e) {
             // Un 400 trae un JSON con el estado de la cabecera y las líneas con nº de columnas incorrecto
             throw new ActivityReportClientException("Activity Report respondió " + e.getStatusCode().value()
-                    + " al subir el fichero de imputaciones: " + e.getResponseBodyAsString(),
+                    + " al subir " + what + ": " + e.getResponseBodyAsString(),
                     e.getStatusCode().value(), e);
         } catch (ResourceAccessException e) {
-            throw new ActivityReportClientException("No se ha podido conectar con Activity Report para subir el fichero de imputaciones: "
+            throw new ActivityReportClientException("No se ha podido conectar con Activity Report para subir " + what + ": "
                     + e.getMessage(), e);
         }
     }

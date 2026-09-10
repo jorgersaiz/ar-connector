@@ -1,6 +1,7 @@
 package com.vendor.arconnector.web.dto;
 
 import com.vendor.arconnector.domain.Person;
+import com.vendor.arconnector.domain.RegistrationStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,11 +18,15 @@ public record PersonDto(
         @NotNull LocalDate startDate,
         LocalDate endDate,
         Boolean active,
-        String personId
+        String personId,
+        RegistrationStatus registrationStatus,
+        LocalDate registrationSentDate,
+        String registrationReason
 ) {
     public static PersonDto from(Person p) {
         return new PersonDto(p.getId(), p.getUid(), p.getEmail(), p.getDisplayName(), p.getGpsCode(), p.getGeography(),
-                p.getStartDate(), p.getEndDate(), p.isActive(), p.personId());
+                p.getStartDate(), p.getEndDate(), p.isActive(), p.personId(),
+                p.getRegistrationStatus(), p.getRegistrationSentDate(), p.getRegistrationReason());
     }
 
     public void applyTo(Person p) {
@@ -34,6 +39,17 @@ public record PersonDto(
         p.setEndDate(endDate);
         if (active != null) {
             p.setActive(active);
+        }
+        // Solo se puede pedir el alta (PENDING) o desistir (NOT_REQUIRED); SENT/REGISTERED los pone el conector
+        if (registrationStatus == RegistrationStatus.PENDING || registrationStatus == RegistrationStatus.NOT_REQUIRED) {
+            RegistrationStatus current = p.getRegistrationStatus();
+            if (current == null || current == RegistrationStatus.NOT_REQUIRED || current == RegistrationStatus.PENDING
+                    || current == RegistrationStatus.REJECTED) {
+                p.setRegistrationStatus(registrationStatus);
+                if (registrationStatus == RegistrationStatus.PENDING) {
+                    p.setRegistrationReason(null);
+                }
+            }
         }
     }
 }

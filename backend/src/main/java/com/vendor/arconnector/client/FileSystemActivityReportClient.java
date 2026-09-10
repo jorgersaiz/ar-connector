@@ -42,6 +42,16 @@ public class FileSystemActivityReportClient implements ActivityReportClient {
     }
 
     @Override
+    public void uploadUserRegistrationFile(byte[] content, String fileName) {
+        uploadActivitiesFile(content, fileName);
+    }
+
+    @Override
+    public byte[] downloadUserRegistrationFeedback(LocalDate submissionDate) {
+        return read(directory.resolve("feedback").resolve("users_" + submissionDate + "_feedback.csv"), 404);
+    }
+
+    @Override
     public void uploadActivitiesFile(byte[] content, String fileName) {
         Path outbox = directory.resolve("outbox");
         Path target = outbox.resolve(LocalTime.now().format(TIME) + "_" + fileName);
@@ -51,7 +61,7 @@ public class FileSystemActivityReportClient implements ActivityReportClient {
         } catch (IOException e) {
             throw new ActivityReportClientException("No se ha podido escribir el fichero en " + target.toAbsolutePath(), e);
         }
-        log.info("Modo FILESYSTEM: fichero de imputaciones escrito en {}", target.toAbsolutePath());
+        log.info("Modo FILESYSTEM: fichero {} escrito en {}", fileName, target.toAbsolutePath());
     }
 
     private static byte[] read(Path file, Integer statusIfMissing) {

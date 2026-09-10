@@ -55,6 +55,17 @@ public class Person {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    /** Alta en Activity Report vía API (solo personas que nunca han tenido acceso). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "registration_status", nullable = false, length = 16)
+    private RegistrationStatus registrationStatus = RegistrationStatus.NOT_REQUIRED;
+
+    @Column(name = "registration_sent_date")
+    private LocalDate registrationSentDate;
+
+    @Column(name = "registration_reason", length = 32)
+    private String registrationReason;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
