@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApiService } from '../../core/api.service';
 import { Person, PersonInput } from '../../core/models';
@@ -20,8 +22,8 @@ export interface PersonDialogData {
   selector: 'app-person-dialog',
   standalone: true,
   imports: [
-    ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule,
-    MatDatepickerModule, MatSlideToggleModule, MatProgressBarModule,
+    DatePipe, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule,
+    MatDatepickerModule, MatSlideToggleModule, MatCheckboxModule, MatProgressBarModule,
   ],
   template: `
     <h2 mat-dialog-title>{{ data.person ? 'Editar persona' : 'Nueva persona' }}</h2>
@@ -70,6 +72,14 @@ export interface PersonDialogData {
         </div>
         <mat-slide-toggle formControlName="active">Activa</mat-slide-toggle>
 
+        @if (canEditRegistration) {
+          <mat-checkbox formControlName="needsRegistration" style="margin-top: 8px">Necesita alta en Activity Report (nunca ha tenido acceso)</mat-checkbox>
+        } @else if (data.person?.registrationStatus === 'SENT') {
+          <div class="hint">Alta en AR: enviada el {{ data.person?.registrationSentDate | date: 'dd/MM/yyyy' }}</div>
+        } @else if (data.person?.registrationStatus === 'REGISTERED') {
+          <div class="hint">Alta en AR: registrada</div>
+        }
+
         @if (errors().length) {
           <div class="errors-box"><ul>@for (e of errors(); track $index) { <li>{{ e }}</li> }</ul></div>
         }
@@ -89,6 +99,9 @@ export class PersonDialogComponent {
   readonly saving = signal(false);
   readonly errors = signal<string[]>([]);
 
+  /** El alta solo se pide/desiste al crear o mientras el conector no la haya enviado (NOT_REQUIRED, PENDING, REJECTED). */
+  readonly canEditRegistration = !this.data.person || ['NOT_REQUIRED', 'PENDING', 'REJECTED'].includes(this.data.person.registrationStatus);
+
   readonly form = new FormGroup({
     uid: new FormControl(this.data.person?.uid ?? '', { nonNullable: true, validators: [Validators.required] }),
     email: new FormControl(this.data.person?.email ?? '', { nonNullable: true, validators: [Validators.required, Validators.email] }),
@@ -98,6 +111,7 @@ export class PersonDialogComponent {
     startDate: new FormControl<Date | null>(fromIso(this.data.person?.startDate) ?? new Date(), [Validators.required]),
     endDate: new FormControl<Date | null>(fromIso(this.data.person?.endDate)),
     active: new FormControl<boolean>(this.data.person?.active ?? true, { nonNullable: true }),
+    needsRegistration: new FormControl<boolean>(this.data.person?.registrationStatus === 'PENDING', { nonNullable: true }),
   });
 
   upper(): void {
@@ -119,6 +133,7 @@ export class PersonDialogComponent {
       endDate: toIso(v.endDate),
       active: v.active,
     };
+    if (this.canEditRegistration) body.registrationStatus = v.needsRegistration ? 'PENDING' : 'NOT_REQUIRED';
     this.saving.set(true);
     this.errors.set([]);
     const req = this.data.person ? this.api.updatePerson(this.data.person.id, body) : this.api.createPerson(body);

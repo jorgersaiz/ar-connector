@@ -4,8 +4,9 @@ import { Observable } from 'rxjs';
 import {
   CatalogStatus, CatalogSyncResult, Dashboard, Day, DayUpsert, FeedbackFile, FeedbackRow, FeedbackSyncResult,
   Holiday, HolidayCreate, ImportResult, JiraIssue, Me, MonthView, NonSdaProject, Notification, NotificationConfig,
-  NotificationRunResult, Person, PersonInput, SdaProject, TaskType, Template, TemplateCreate, UploadPreview,
-  UploadQuota, UploadRecord, UploadRunResult, User, UserCreate, UserUpdate,
+  NotificationRunResult, Person, PersonInput, RegistrationFeedbackResult, RegistrationOverview, RegistrationUploadResult,
+  SdaProject, TaskType, Template, TemplateCreate, UploadPreview, UploadQuota, UploadRecord, UploadRunResult, User,
+  UserCreate, UserUpdate,
 } from './models';
 
 /** Cliente tipado de la API del panel (docs/panel-api.md). Todas las rutas son relativas a /api. */
@@ -158,6 +159,23 @@ export class ApiService {
   }
   notificationsConfig(): Observable<NotificationConfig> {
     return this.http.get<NotificationConfig>(`${this.base}/notifications/config`);
+  }
+
+  // ---- Registro de usuarios en Activity Report ----
+  registrations(): Observable<RegistrationOverview> {
+    return this.http.get<RegistrationOverview>(`${this.base}/registrations`);
+  }
+  runRegistrations(): Observable<RegistrationUploadResult> {
+    return this.http.post<RegistrationUploadResult>(`${this.base}/registrations/run`, {});
+  }
+  syncRegistrationFeedback(): Observable<RegistrationFeedbackResult[]> {
+    return this.http.post<RegistrationFeedbackResult[]>(`${this.base}/registrations/feedback/sync`, {});
+  }
+  requestRegistration(personId: number): Observable<Person> {
+    return this.http.post<Person>(`${this.base}/registrations/persons/${personId}/request`, {});
+  }
+  cancelRegistration(personId: number): Observable<Person> {
+    return this.http.post<Person>(`${this.base}/registrations/persons/${personId}/cancel`, {});
   }
 
   // ---- Importación CSV ----

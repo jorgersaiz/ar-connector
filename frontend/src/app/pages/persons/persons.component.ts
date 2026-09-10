@@ -16,6 +16,7 @@ import { ApiService } from '../../core/api.service';
 import { NotifyService } from '../../core/notify.service';
 import { Person } from '../../core/models';
 import { confirm } from '../../shared/confirm-dialog.component';
+import { RegistrationChipComponent } from '../../shared/registration-chip.component';
 import { PersonDialogComponent, PersonDialogData } from './person-dialog.component';
 
 @Component({
@@ -23,7 +24,7 @@ import { PersonDialogComponent, PersonDialogData } from './person-dialog.compone
   standalone: true,
   imports: [
     DatePipe, ReactiveFormsModule, RouterLink, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule,
-    MatInputModule, MatSlideToggleModule, MatTooltipModule, MatProgressBarModule, MatDialogModule,
+    MatInputModule, MatSlideToggleModule, MatTooltipModule, MatProgressBarModule, MatDialogModule, RegistrationChipComponent,
   ],
   template: `
     <div class="page">
@@ -82,12 +83,21 @@ import { PersonDialogComponent, PersonDialogData } from './person-dialog.compone
               <mat-icon [class]="p.active ? 'ok-text' : 'muted'">{{ p.active ? 'check_circle' : 'cancel' }}</mat-icon>
             </td>
           </ng-container>
+          <ng-container matColumnDef="registration">
+            <th mat-header-cell *matHeaderCellDef>Alta AR</th>
+            <td mat-cell *matCellDef="let p"><app-registration-chip [person]="p" /></td>
+          </ng-container>
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let p" class="nowrap">
               <a mat-icon-button [routerLink]="['/personas', p.id, 'mes']" matTooltip="Ver mes" aria-label="Ver mes"><mat-icon>calendar_month</mat-icon></a>
               <a mat-icon-button [routerLink]="['/personas', p.id]" matTooltip="Ficha y plantillas" aria-label="Ficha"><mat-icon>badge</mat-icon></a>
               <button mat-icon-button (click)="openDialog(p)" matTooltip="Editar" aria-label="Editar"><mat-icon>edit</mat-icon></button>
+              @if (p.registrationStatus === 'NOT_REQUIRED' || p.registrationStatus === 'REJECTED') {
+                <button mat-icon-button (click)="requestRegistration(p)" matTooltip="Solicitar alta en AR" aria-label="Solicitar alta en AR"><mat-icon>person_add_alt</mat-icon></button>
+              } @else if (p.registrationStatus === 'PENDING') {
+                <button mat-icon-button (click)="cancelRegistration(p)" matTooltip="Cancelar alta" aria-label="Cancelar alta"><mat-icon>person_remove</mat-icon></button>
+              }
               <button mat-icon-button color="warn" (click)="deactivate(p)" [disabled]="!p.active" matTooltip="Dar de baja" aria-label="Dar de baja"><mat-icon>person_off</mat-icon></button>
             </td>
           </ng-container>
@@ -105,7 +115,7 @@ export class PersonsComponent implements OnInit {
   private readonly notify = inject(NotifyService);
   private readonly dialog = inject(MatDialog);
 
-  readonly columns = ['uid', 'displayName', 'email', 'geography', 'gpsCode', 'startDate', 'endDate', 'active', 'actions'];
+  readonly columns = ['uid', 'displayName', 'email', 'geography', 'gpsCode', 'startDate', 'endDate', 'active', 'registration', 'actions'];
   readonly persons = signal<Person[]>([]);
   readonly loading = signal(false);
   readonly filter = new FormControl('', { nonNullable: true });
@@ -142,6 +152,28 @@ export class PersonsComponent implements OnInit {
       .subscribe((saved) => {
         if (saved) { this.notify.ok(person ? 'Persona actualizada' : 'Persona creada'); this.load(); }
       });
+  }
+
+  requestRegistration(p: Person): void {
+    const again = p.registrationStatus === 'REJECTED';
+    confirm(this.dialog, {
+      title: 'Solicitar alta en Activity Report',
+      message: `${again ? 'El alta anterior fue rechazada. ' : ''}Se incluirá a ${p.displayName} (${p.uid}) en el próximo envío de altas. Marca solo a personas que nunca han tenido acceso a Activity Report.`,
+      confirmLabel: 'Solicitar alta',
+    }).subscribe((ok) => {
+      if (!ok) return;
+      this.api.requestRegistration(p.id).subscribe({
+        next: () => { this.notify.ok('Alta pendiente de envío'); this.load(); },
+        error: (err: unknown) => this.notify.error(err),
+      });
+    });
+  }
+
+  cancelRegistration(p: Person): void {
+    this.api.cancelRegistration(p.id).subscribe({
+      next: () => { this.notify.ok('Alta cancelada'); this.load(); },
+      error: (err: unknown) => this.notify.error(err),
+    });
   }
 
   deactivate(p: Person): void {

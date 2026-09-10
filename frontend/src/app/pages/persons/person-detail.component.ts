@@ -13,6 +13,7 @@ import { NotifyService } from '../../core/notify.service';
 import { Person, TaskType, Template } from '../../core/models';
 import { confirm } from '../../shared/confirm-dialog.component';
 import { HoursPipe, LineLabelPipe } from '../../shared/line-label.pipe';
+import { RegistrationChipComponent } from '../../shared/registration-chip.component';
 import { PersonDialogComponent, PersonDialogData } from './person-dialog.component';
 import { TemplateDialogComponent, TemplateDialogData } from './template-dialog.component';
 
@@ -21,7 +22,7 @@ import { TemplateDialogComponent, TemplateDialogData } from './template-dialog.c
   standalone: true,
   imports: [
     DatePipe, RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatTooltipModule, MatProgressBarModule,
-    MatDialogModule, HoursPipe, LineLabelPipe,
+    MatDialogModule, HoursPipe, LineLabelPipe, RegistrationChipComponent,
   ],
   template: `
     <div class="page">
@@ -45,6 +46,7 @@ import { TemplateDialogComponent, TemplateDialogData } from './template-dialog.c
               <div><span class="muted small">Person ID (AR)</span><div class="mono">{{ p.personId ?? '—' }}</div></div>
               <div><span class="muted small">Alta</span><div>{{ p.startDate | date: 'dd/MM/yyyy' }}</div></div>
               <div><span class="muted small">Baja</span><div>{{ p.endDate ? (p.endDate | date: 'dd/MM/yyyy') : '—' }}</div></div>
+              <div><span class="muted small">Alta en AR</span><div><app-registration-chip [person]="p" /></div></div>
             </div>
           </mat-card-content>
         </mat-card>

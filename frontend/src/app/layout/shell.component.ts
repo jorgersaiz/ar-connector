@@ -46,6 +46,9 @@ import { AuthService } from '../core/auth.service';
             <a mat-list-item routerLink="/envios" routerLinkActive="active">
               <mat-icon matListItemIcon>cloud_upload</mat-icon><span matListItemTitle>Envíos</span>
             </a>
+            <a mat-list-item routerLink="/altas" routerLinkActive="active">
+              <mat-icon matListItemIcon>person_add</mat-icon><span matListItemTitle>Altas en AR</span>
+            </a>
             <a mat-list-item routerLink="/rechazos" routerLinkActive="active">
               <mat-icon matListItemIcon>report</mat-icon><span matListItemTitle>Rechazos</span>
             </a>

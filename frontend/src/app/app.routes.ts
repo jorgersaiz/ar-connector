@@ -22,6 +22,7 @@ export const routes: Routes = [
         ],
       },
       { path: 'envios', canActivate: [managerGuard], loadComponent: () => import('./pages/uploads/uploads.component').then((m) => m.UploadsComponent) },
+      { path: 'altas', canActivate: [managerGuard], loadComponent: () => import('./pages/registrations/registrations.component').then((m) => m.RegistrationsComponent) },
       { path: 'rechazos', canActivate: [managerGuard], loadComponent: () => import('./pages/feedback/feedback.component').then((m) => m.FeedbackComponent) },
       { path: 'importar', canActivate: [managerGuard], loadComponent: () => import('./pages/imports/imports.component').then((m) => m.ImportsComponent) },
       { path: 'catalogos', canActivate: [managerGuard], loadComponent: () => import('./pages/catalogs/catalogs.component').then((m) => m.CatalogsComponent) },

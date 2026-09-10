@@ -49,9 +49,19 @@ export interface Person {
   active: boolean;
   /** SHA256 del uid en mayúsculas; lo calcula el backend, no se edita */
   personId: string;
+  /** Alta del usuario en Activity Report (la gestiona el conector salvo PENDING/NOT_REQUIRED) */
+  registrationStatus: RegistrationStatus;
+  registrationSentDate: string | null;
+  /** Código APV_UR_xx del rechazo, si lo hay */
+  registrationReason: string | null;
 }
 
-export type PersonInput = Omit<Person, 'id' | 'personId'>;
+export type RegistrationStatus = 'NOT_REQUIRED' | 'PENDING' | 'SENT' | 'REGISTERED' | 'REJECTED';
+
+export type PersonInput = Omit<Person, 'id' | 'personId' | 'registrationStatus' | 'registrationSentDate' | 'registrationReason'> & {
+  /** Solo se puede pedir el alta (PENDING) o desistir (NOT_REQUIRED); el resto lo pone el conector */
+  registrationStatus?: 'PENDING' | 'NOT_REQUIRED';
+};
 
 export interface Line {
   taskTypeCode: string;
@@ -392,4 +402,34 @@ export interface NotificationConfig {
   channel: NotificationChannel;
   daysBeforeCutoff: number;
   mailEnabled: boolean;
+}
+
+// ---- Registro de usuarios en Activity Report ----
+
+export interface RegistrationOverview {
+  /** Personas con estado distinto de NOT_REQUIRED */
+  persons: Person[];
+  quota: DashboardQuota;
+  lastUpload: UploadRecord | null;
+  pendingFeedbackDates: string[];
+}
+
+export type RegistrationUploadStatus = 'SENT' | 'SKIPPED_QUOTA' | 'NOTHING_TO_SEND' | 'FAILED';
+
+export interface RegistrationUploadResult {
+  status: RegistrationUploadStatus;
+  submissionDate: string | null;
+  count: number;
+  apiCallId: number | null;
+  error: string | null;
+}
+
+export interface RegistrationFeedbackResult {
+  submissionDate: string;
+  status: FeedbackSyncStatus;
+  rowCount: number | null;
+  registered: number | null;
+  rejected: number | null;
+  unmatched: number | null;
+  error: string | null;
 }
