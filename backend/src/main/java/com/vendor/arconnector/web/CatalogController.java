@@ -117,7 +117,8 @@ public class CatalogController {
                         req = tree.effectiveRequirementsFor(t.getTaskTypeId());
                     } catch (RuntimeException e) {
                         path = t.getTaskTypeId();
-                        req = new TaskTree.Requirements(t.isRequiresSdaProject(), t.isRequiresJiraIssue(), t.isRequiresNonSdaProject(), false);
+                        req = new TaskTree.Requirements(t.isRequiresSdaProject(), t.isRequiresJiraIssue(), t.isRequiresNonSdaProject(), false,
+                                t.isRequiresEvolutionarySda(), t.isRequiresEvolutionaryJiraIssue(), t.isRequiresConceptualizationTime());
                     }
                     boolean enabled = t.getDisabledDate() == null || !today.isAfter(t.getDisabledDate());
                     return new TaskTypeDto(t.getTaskTypeId(), t.getTaskTypeParentId(), path, t.getDescriptionEs(),

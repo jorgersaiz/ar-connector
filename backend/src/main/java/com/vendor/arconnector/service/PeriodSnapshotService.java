@@ -36,18 +36,21 @@ public class PeriodSnapshotService {
     private final DefaultTemplateRepository templateRepository;
     private final HolidayRepository holidayRepository;
     private final TaskTypeRepository taskTypeRepository;
+    private final CatalogRulesService catalogRulesService;
     private final ModifiablePeriodPolicy periodPolicy = new ModifiablePeriodPolicy();
 
     public PeriodSnapshotService(PersonRepository personRepository,
                                  ActivityDayRepository activityDayRepository,
                                  DefaultTemplateRepository templateRepository,
                                  HolidayRepository holidayRepository,
-                                 TaskTypeRepository taskTypeRepository) {
+                                 TaskTypeRepository taskTypeRepository,
+                                 CatalogRulesService catalogRulesService) {
         this.personRepository = personRepository;
         this.activityDayRepository = activityDayRepository;
         this.templateRepository = templateRepository;
         this.holidayRepository = holidayRepository;
         this.taskTypeRepository = taskTypeRepository;
+        this.catalogRulesService = catalogRulesService;
     }
 
     /**
@@ -96,7 +99,7 @@ public class PeriodSnapshotService {
         PeriodSnapshot snapshot = new PeriodSnapshotBuilder(periodPolicy, calendar)
                 .build(submissionDate, persons, existing, templates);
 
-        ActivitiesFileBuilder.LenientResult built = new ActivitiesFileBuilder(tree, periodPolicy)
+        ActivitiesFileBuilder.LenientResult built = new ActivitiesFileBuilder(tree, periodPolicy, catalogRulesService.load())
                 .buildSkippingInvalid(snapshot.days(), submissionDate);
 
         List<ActivityDay> persisted = new ArrayList<>(existing);

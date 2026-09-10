@@ -20,9 +20,11 @@ import java.util.List;
 public class DayValidationService {
 
     private final TaskTypeRepository taskTypeRepository;
+    private final CatalogRulesService catalogRulesService;
 
-    public DayValidationService(TaskTypeRepository taskTypeRepository) {
+    public DayValidationService(TaskTypeRepository taskTypeRepository, CatalogRulesService catalogRulesService) {
         this.taskTypeRepository = taskTypeRepository;
+        this.catalogRulesService = catalogRulesService;
     }
 
     public ActivitiesFileBuilder builder() {
@@ -30,7 +32,7 @@ public class DayValidationService {
         if (tree.isEmpty()) {
             throw new IllegalStateException("El árbol de actividades está vacío: sincroniza el catálogo task_types antes de introducir imputaciones");
         }
-        return new ActivitiesFileBuilder(tree, new ModifiablePeriodPolicy());
+        return new ActivitiesFileBuilder(tree, new ModifiablePeriodPolicy(), catalogRulesService.load());
     }
 
     /** Lanza {@link DayValidationException} si algún día tiene problemas de contenido. */

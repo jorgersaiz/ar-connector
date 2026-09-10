@@ -29,8 +29,19 @@ public final class TaskTree {
             boolean requiresSdaProject,
             boolean requiresJiraIssue,
             boolean requiresNonSdaProject,
-            boolean requiresTechnologyDetail
+            boolean requiresTechnologyDetail,
+            boolean requiresEvolutionarySda,
+            boolean requiresEvolutionaryJiraIssue,
+            boolean requiresConceptualizationTime
     ) {
+        /** Constructor sin las exigencias de evolutivo / conceptualization time (a false). */
+        public Node(String code, String parentCode, boolean canBeSelected, LocalDate disabledDate,
+                    boolean requiresSdaProject, boolean requiresJiraIssue, boolean requiresNonSdaProject,
+                    boolean requiresTechnologyDetail) {
+            this(code, parentCode, canBeSelected, disabledDate, requiresSdaProject, requiresJiraIssue,
+                    requiresNonSdaProject, requiresTechnologyDetail, false, false, false);
+        }
+
         public Node {
             Objects.requireNonNull(code, "code");
             if (parentCode != null && parentCode.isBlank()) {
@@ -77,7 +88,10 @@ public final class TaskTree {
                 t.isRequiresSdaProject(),
                 t.isRequiresJiraIssue(),
                 t.isRequiresNonSdaProject(),
-                t.isRequiresTechnologyDetail()
+                t.isRequiresTechnologyDetail(),
+                t.isRequiresEvolutionarySda(),
+                t.isRequiresEvolutionaryJiraIssue(),
+                t.isRequiresConceptualizationTime()
         )).toList();
         return of(list);
     }
@@ -125,19 +139,26 @@ public final class TaskTree {
      * SDA, así que la exigencia se hereda de los antecesores: basta con que un
      * nodo del camino la tenga a true.
      */
-    public record Requirements(boolean sdaProject, boolean jiraIssue, boolean nonSdaProject, boolean technologyDetail) {
+    public record Requirements(boolean sdaProject, boolean jiraIssue, boolean nonSdaProject, boolean technologyDetail,
+                               boolean evolutionarySda, boolean evolutionaryJiraIssue, boolean conceptualizationTime) {
+        public Requirements(boolean sdaProject, boolean jiraIssue, boolean nonSdaProject, boolean technologyDetail) {
+            this(sdaProject, jiraIssue, nonSdaProject, technologyDetail, false, false, false);
+        }
     }
 
     public Requirements effectiveRequirementsFor(String code) {
-        boolean sda = false, jira = false, nonSda = false, tech = false;
+        boolean sda = false, jira = false, nonSda = false, tech = false, evoSda = false, evoJira = false, concept = false;
         for (String c : pathTo(code)) {
             Node n = nodes.get(c);
             sda |= n.requiresSdaProject();
             jira |= n.requiresJiraIssue();
             nonSda |= n.requiresNonSdaProject();
             tech |= n.requiresTechnologyDetail();
+            evoSda |= n.requiresEvolutionarySda();
+            evoJira |= n.requiresEvolutionaryJiraIssue();
+            concept |= n.requiresConceptualizationTime();
         }
-        return new Requirements(sda, jira, nonSda, tech);
+        return new Requirements(sda, jira, nonSda, tech, evoSda, evoJira, concept);
     }
 
     /** Los cinco códigos task_level_1..5 del fichero, repitiendo el último nivel hasta completar cinco. */

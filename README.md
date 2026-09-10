@@ -52,6 +52,7 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | Login provisional (`SecurityConfig`, `/api/auth`) | sesión con cookie, usuarios en `app_user` con BCrypt, roles MANAGER / CONSULTANT; un consultor solo ve y edita su propia persona. Se sustituirá por Entra ID |
 | `GET /api/persons/{id}/month` | vista de mes para el panel: qué se enviaría cada día (explícito, plantilla, festivo local, nada), huecos, días bloqueados por corte y resultado del último feedback |
 | Panel Angular (`frontend/`) | login, "Mi mes" para el consultor, y para el manager personas, plantillas, envíos, rechazos, importación CSV, catálogos, festivos y usuarios. Contrato en `docs/panel-api.md` |
+| `CatalogRules` | reglas que dependen de catálogos, aplicadas al guardar y al generar el fichero: SDA existente y vigente, márgenes en trimestres para Ended (desde `end_date`) y On hold (desde `last_modified_status_date`) según `countries`, SDA e issues de evolutivo solo en actividades de evolutivo, issues existentes y del SDA indicado (catálogo o histórico), Discarded solo hasta el día del cambio, Deployed hasta 30 días después, conceptualization time solo en su actividad, proyectos no SDA del catálogo, nodos ocultos por persona y día |
 
 Pendiente (en este orden):
 
@@ -60,11 +61,10 @@ Pendiente (en este orden):
    `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
 2. Sustituir el login provisional por Entra ID (y activar CSRF antes de
    exponer el panel fuera de la red de Arktic).
-3. Avisos de huecos antes del corte (correo o Teams).
-5. Validaciones que dependen de catálogos: márgenes por estado Ended / On hold
-   de los SDA, estados de issues de Jira, evolutivos, nodos ocultos por persona.
-6. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
-7. Infraestructura Azure (Bicep) y pipeline de despliegue.
+3. Panel de situación del periodo para el manager y avisos de huecos antes
+   del corte (el correo necesita un SMTP de Arktic).
+4. Registro de usuarios nuevos (`upload_user_registration_file`) con su feedback.
+5. Infraestructura Azure (Bicep) y pipeline de despliegue.
 
 ## Probar la sincronización sin credenciales
 

@@ -69,10 +69,17 @@ public final class ActivitiesFileBuilder {
 
     private final TaskTree tree;
     private final ModifiablePeriodPolicy periodPolicy;
+    private final CatalogRules catalogRules;
 
+    /** Solo formato y árbol, sin reglas de catálogo. */
     public ActivitiesFileBuilder(TaskTree tree, ModifiablePeriodPolicy periodPolicy) {
+        this(tree, periodPolicy, CatalogRules.disabled());
+    }
+
+    public ActivitiesFileBuilder(TaskTree tree, ModifiablePeriodPolicy periodPolicy, CatalogRules catalogRules) {
         this.tree = Objects.requireNonNull(tree);
         this.periodPolicy = Objects.requireNonNull(periodPolicy);
+        this.catalogRules = Objects.requireNonNull(catalogRules);
     }
 
     /**
@@ -264,6 +271,9 @@ public final class ActivitiesFileBuilder {
         if (!req.nonSdaProject() && hasNonSda) {
             problems.add(problem(day, "NON_SDA_NOT_ALLOWED", "la actividad " + node.code() + " no admite proyecto no SDA"));
         }
+
+        // Reglas que dependen de los catálogos (estados de SDA e issues, bajas, evolutivos, nodos ocultos)
+        problems.addAll(catalogRules.validate(day.uid(), day.date(), line, tree.pathTo(node.code()), req));
     }
 
     private String[] workedRow(LocalDate date, String personId, LineSubmission line) {
