@@ -96,7 +96,8 @@ public final class MonthViewBuilder {
                 continue;
             }
 
-            Optional<DefaultTemplate> template = templates.stream().filter(t -> t.appliesOn(date)).findFirst();
+            Optional<DefaultTemplate> template = templates.stream().filter(t -> t.appliesOn(date))
+                    .max(Comparator.comparing(DefaultTemplate::getValidFrom));
             if (template.isPresent() && !template.get().getLines().isEmpty()) {
                 ActivityDay materialized = template.get().materialize(date);
                 views.add(new DayView(date, classification, Source.TEMPLATE, DayKind.WORKED, DayOrigin.TEMPLATE, null,

@@ -43,10 +43,17 @@ import { TemplateDialogComponent, TemplateDialogData } from './template-dialog.c
               <div><span class="muted small">Email</span><div>{{ p.email }}</div></div>
               <div><span class="muted small">Geografía</span><div>{{ p.geography }}</div></div>
               <div><span class="muted small">Código GPS</span><div class="mono">{{ p.gpsCode ?? '—' }}</div></div>
-              <div><span class="muted small">Person ID (AR)</span><div class="mono">{{ p.personId ?? '—' }}</div></div>
               <div><span class="muted small">Alta</span><div>{{ p.startDate | date: 'dd/MM/yyyy' }}</div></div>
               <div><span class="muted small">Baja</span><div>{{ p.endDate ? (p.endDate | date: 'dd/MM/yyyy') : '—' }}</div></div>
               <div><span class="muted small">Alta en AR</span><div><app-registration-chip [person]="p" /></div></div>
+              <div class="wide">
+                <span class="muted small">Person ID (AR)</span>
+                <div class="pid">
+                  <span class="mono" [matTooltip]="p.personId">{{ p.personId.slice(0, 16) }}…</span>
+                  <button mat-icon-button class="copy" (click)="copy(p.personId)" matTooltip="Copiar el identificador completo" aria-label="Copiar"><mat-icon>content_copy</mat-icon></button>
+                  <span class="muted small">Identificador anonimizado con el que BBVA reconoce a esta persona en los ficheros</span>
+                </div>
+              </div>
             </div>
           </mat-card-content>
         </mat-card>
@@ -56,7 +63,11 @@ import { TemplateDialogComponent, TemplateDialogData } from './template-dialog.c
           <span class="spacer"></span>
           <button mat-flat-button color="primary" (click)="newTemplate()"><mat-icon>add</mat-icon> Nueva plantilla</button>
         </div>
-        <p class="hint">Cada plantilla define las líneas que se imputan por defecto en los días laborables de su periodo de validez.</p>
+        <p class="hint">
+          Cada plantilla define lo que se imputa por defecto en los días laborables de su periodo de validez.
+          Lo normal es una sola, sin fin. Para un cambio de proyecto, crea una nueva desde la fecha del cambio:
+          la anterior se cierra sola el día antes. Si dos coinciden en un día, manda la que empezó más tarde.
+        </p>
 
         @for (t of templates(); track t.id) {
           <mat-card class="card">
@@ -85,6 +96,11 @@ import { TemplateDialogComponent, TemplateDialogData } from './template-dialog.c
   `,
   styles: [`
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .grid > div { min-width: 0; }
+    .wide { grid-column: 1 / -1; }
+    .pid { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .copy { width: 32px; height: 32px; line-height: 32px; }
+    .copy mat-icon { font-size: 18px; width: 18px; height: 18px; }
     ul.lines { margin: 0; padding-left: 18px; font-size: 13px; }
   `],
 })
@@ -103,6 +119,13 @@ export class PersonDetailComponent implements OnInit {
 
   get personId(): number {
     return Number(this.id);
+  }
+
+  copy(value: string): void {
+    navigator.clipboard?.writeText(value).then(
+      () => this.notify.ok('Identificador copiado'),
+      () => this.notify.error('No se ha podido copiar'),
+    );
   }
 
   ngOnInit(): void {

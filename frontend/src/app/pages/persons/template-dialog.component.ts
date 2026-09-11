@@ -30,7 +30,7 @@ export interface TemplateDialogData {
     @if (saving()) { <mat-progress-bar mode="indeterminate" /> }
     <mat-dialog-content>
       <div class="dialog-form">
-        <p class="hint">La plantilla se aplica a todos los días laborables del periodo que no tengan una excepción explícita.</p>
+        <p class="hint">Se aplica a todos los días laborables del periodo que no tengan una excepción. Si ya hay una plantilla sin fin que empieza antes, se cerrará el día anterior a esta fecha de inicio.</p>
         <form [formGroup]="form" class="row">
           <mat-form-field>
             <mat-label>Válida desde</mat-label>

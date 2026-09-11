@@ -78,9 +78,10 @@ public final class PeriodSnapshotBuilder {
                     continue;
                 }
 
+                // Si varias plantillas cubren el día, manda la que empezó más tarde (la más reciente)
                 Optional<DefaultTemplate> template = templatesByUid.getOrDefault(person.getUid(), List.of()).stream()
                         .filter(t -> t.appliesOn(date))
-                        .findFirst();
+                        .max(Comparator.comparing(DefaultTemplate::getValidFrom));
                 if (template.isPresent() && !template.get().getLines().isEmpty()) {
                     ActivityDay materialized = template.get().materialize(date);
                     generated.add(materialized);

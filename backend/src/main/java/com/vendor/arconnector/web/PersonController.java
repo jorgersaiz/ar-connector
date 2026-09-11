@@ -129,6 +129,24 @@ public class PersonController {
         validationService.validate(DaySubmission.worked(person.getUid(), dto.validFrom(),
                 dto.lines().stream().map(LineDto::toSubmission).toList()));
 
+        // Una plantilla nueva cierra la anterior "sin fin" el día antes de empezar; cualquier otro solape se rechaza
+        LocalDate newTo = dto.validTo() == null ? LocalDate.MAX : dto.validTo();
+        for (DefaultTemplate existing : templateRepository.findByPersonWithLines(person)) {
+            LocalDate exTo = existing.getValidTo() == null ? LocalDate.MAX : existing.getValidTo();
+            boolean overlaps = !existing.getValidFrom().isAfter(newTo) && !dto.validFrom().isAfter(exTo);
+            if (!overlaps) {
+                continue;
+            }
+            if (existing.getValidTo() == null && existing.getValidFrom().isBefore(dto.validFrom())) {
+                existing.setValidTo(dto.validFrom().minusDays(1));
+                templateRepository.save(existing);
+            } else {
+                throw new IllegalArgumentException("Se solapa con la plantilla que va del " + existing.getValidFrom()
+                        + (existing.getValidTo() == null ? " en adelante" : " al " + existing.getValidTo())
+                        + ". Elimínala o ajusta las fechas.");
+            }
+        }
+
         DefaultTemplate t = new DefaultTemplate(person, dto.validFrom(), dto.validTo());
         for (LineDto l : dto.lines()) {
             t.addLine(l.taskTypeCode().trim(), LineDto.blankToNull(l.sdaProjectId()), LineDto.blankToNull(l.jiraIssueId()),

@@ -123,6 +123,24 @@ class PeriodSnapshotBuilderTest {
     }
 
     @Test
+    void siDosPlantillasCubrenElMismoDiaMandaLaQueEmpezoMasTarde() {
+        Person p = person("XE6", "2025-01-01");
+        DefaultTemplate antigua = new DefaultTemplate(p, d("2025-01-01"), null);
+        antigua.addLine("03.01", null, null, null, 480);
+        DefaultTemplate nueva = new DefaultTemplate(p, d("2026-03-10"), null);
+        nueva.addLine("01.01.01", "SDATOOL-9", null, null, 480);
+
+        PeriodSnapshot snapshot = builder.build(SUBMISSION, List.of(p), List.of(), List.of(antigua, nueva));
+
+        DaySubmission dia9 = snapshot.days().stream().filter(x -> x.date().equals(d("2026-03-09"))).findFirst().orElseThrow();
+        DaySubmission dia10 = snapshot.days().stream().filter(x -> x.date().equals(d("2026-03-10"))).findFirst().orElseThrow();
+        assertThat(dia9.kind()).isEqualTo(DayKind.NON_WORKING);   // festivo local
+        assertThat(dia10.lines().get(0).taskTypeCode()).isEqualTo("01.01.01");
+        DaySubmission dia4 = snapshot.days().stream().filter(x -> x.date().equals(d("2026-03-04"))).findFirst().orElseThrow();
+        assertThat(dia4.lines().get(0).taskTypeCode()).isEqualTo("03.01");
+    }
+
+    @Test
     void elSnapshotCompletoSeConvierteEnUnFicheroValido() {
         TaskTree tree = TaskTree.of(List.of(
                 new Node("01", null, false, null, true, false, false, false),
