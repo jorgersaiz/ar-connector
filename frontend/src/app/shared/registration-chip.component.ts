@@ -19,7 +19,7 @@ export function rejectReasonText(code: string | null | undefined): string {
   return meaning ? `${code}: ${meaning}` : code;
 }
 
-/** Chip con el estado del alta en Activity Report de una persona. Para NOT_REQUIRED pinta solo "—". */
+/** Chip con el estado del alta en Activity Report de una persona. NOT_REQUIRED se muestra como "Ya tiene acceso". */
 @Component({
   selector: 'app-registration-chip',
   standalone: true,
@@ -30,7 +30,7 @@ export function rejectReasonText(code: string | null | undefined): string {
       @case ('SENT') { <span class="chip-reg sent">Enviada{{ person.registrationSentDate ? ' ' + (person.registrationSentDate | date: 'dd/MM') : '' }}</span> }
       @case ('REGISTERED') { <span class="chip-reg registered">Registrada</span> }
       @case ('REJECTED') { <span class="chip-reg rejected" [matTooltip]="reasonText()">Rechazada{{ person.registrationReason ? ' ' + person.registrationReason : '' }}</span> }
-      @default { <span class="muted">—</span> }
+      @default { <span class="muted" matTooltip="Se creó sin pedir alta: se asume que ya imputa en Activity Report y sus horas se envían directamente">Ya tiene acceso</span> }
     }
   `,
   styles: [`
