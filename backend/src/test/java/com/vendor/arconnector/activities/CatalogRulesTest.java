@@ -46,7 +46,12 @@ class CatalogRulesTest {
                     new IssueInfo("ETR-MOVED", "SDA-OTHER", "In progress", null, "feature"),
                     new IssueInfo("ETR-EVO", "SDA-EVO", "In progress", null, "feature"),
                     new IssueInfo("ETR-CT", "SDA-FLOW", "New", null, "conceptualization time"),
-                    new IssueInfo("ETR-OFF", "SDA-FLOW", "In progress", d("2026-09-05"), "feature")),
+                    new IssueInfo("ETR-OFF", "SDA-FLOW", "In progress", d("2026-09-05"), "feature"),
+                    // casos vistos en el catálogo real
+                    new IssueInfo("ETR-TWO", "SDA-FLOW", "In Progress", null, "Feature"),      // misma issue, dos SDA
+                    new IssueInfo("ETR-TWO", "SDA-ENDED", "In Progress", null, "Feature"),
+                    new IssueInfo("ETR-NOSDA", null, "In Progress", null, "Feature"),          // feature de evolutivo, sin SDA
+                    new IssueInfo("ETR-CHANGED", "SDA-FLOW", "In Progress", null, "Feature")), // cambió de SDA el 22/09
             List.of(
                     new CountryInfo("Spain", 1, 2),
                     new CountryInfo("Mexico", 0, 1)),
@@ -54,11 +59,14 @@ class CatalogRulesTest {
                     new StatusChange("ETR-DEPLOYED", "Deployed", d("2026-08-21")),
                     new StatusChange("ETR-DISCARDED", "In progress", d("2026-08-01")),
                     new StatusChange("ETR-DISCARDED", "Discarded", d("2026-09-03"))),
-            List.of(new IssueSdaLink("ETR-MOVED", "SDA-FLOW")),
+            List.of(
+                    new IssueSdaLink("ETR-MOVED", "SDA-FLOW", d("2026-09-05")),
+                    new IssueSdaLink("ETR-CHANGED", "SDA-FLOW", d("2026-09-22"))),
             List.of(
                     new NonSdaInfo("Soporte interno", null),
                     new NonSdaInfo("Proyecto retirado", d("2026-06-30"))),
-            List.of(new HiddenNode(PersonIdHasher.hash(UID), d("2026-09-09"), "03")));
+            // Activity Report informa los hashes en mayúsculas
+            List.of(new HiddenNode(PersonIdHasher.hash(UID).toUpperCase(), d("2026-09-09"), "03")));
 
     private List<String> codes(List<ValidationProblem> problems) {
         return problems.stream().map(ValidationProblem::code).toList();
@@ -127,6 +135,37 @@ class CatalogRulesTest {
     void elHistoricoDeFeaturesYSdaTambienValidaLaPertenencia() {
         // ETR-MOVED está en el catálogo con SDA-OTHER, pero el histórico la vincula a SDA-FLOW
         assertThat(check("2026-09-10", LineSubmission.jira("x", "SDA-FLOW", "ETR-MOVED", 60), SDA_JIRA, "01")).isEmpty();
+    }
+
+    @Test
+    void unaIssueAsociadaAVariosSdaValeConCualquieraDeEllos() {
+        assertThat(check("2026-09-10", LineSubmission.jira("x", "SDA-FLOW", "ETR-TWO", 60), SDA_JIRA, "01")).isEmpty();
+        assertThat(codes(check("2026-09-10", LineSubmission.jira("x", "SDA-ENDED", "ETR-TWO", 60), SDA_JIRA, "01"))).doesNotContain("JIRA_WRONG_SDA");
+        assertThat(codes(check("2026-09-10", LineSubmission.jira("x", "SDA-HOLD", "ETR-TWO", 60), SDA_JIRA, "01"))).containsExactly("JIRA_WRONG_SDA");
+    }
+
+    @Test
+    void featureDeEvolutivoSinSda() {
+        Requirements evolutionaryFeature = new Requirements(false, true, false, false, false, true, false);
+        assertThat(check("2026-09-10", new LineSubmission("03.04.02", null, "ETR-NOSDA", null, 480), evolutionaryFeature, "03", "03.04", "03.04.02")).isEmpty();
+    }
+
+    @Test
+    void laAsociacionConElSdaSeEvaluaEnLaFechaDeActividad() {
+        // Caso visto en el feedback real: la feature cambió de SDA el 22/09. Los días anteriores con el
+        // SDA antiguo fueron aceptados; del 22 en adelante, rechazados con APV_05.
+        assertThat(check("2026-09-18", LineSubmission.jira("x", "SDA-HOLD", "ETR-CHANGED", 60), SDA_JIRA, "01")).isEmpty();
+        assertThat(check("2026-09-21", LineSubmission.jira("x", "SDA-HOLD", "ETR-CHANGED", 60), SDA_JIRA, "01")).isEmpty();
+        assertThat(codes(check("2026-09-22", LineSubmission.jira("x", "SDA-HOLD", "ETR-CHANGED", 60), SDA_JIRA, "01"))).containsExactly("JIRA_WRONG_SDA");
+        assertThat(check("2026-09-24", LineSubmission.jira("x", "SDA-FLOW", "ETR-CHANGED", 60), SDA_JIRA, "01")).isEmpty();
+    }
+
+    @Test
+    void siLaActividadNoEsperaIssueNoSeValida() {
+        // Activity Report acepta ahí issues desconocidas, de otro SDA o desplegadas hace meses
+        assertThat(check("2026-09-10", LineSubmission.jira("x", "SDA-FLOW", "ETR-NOPE", 60), SDA_ONLY, "01")).isEmpty();
+        assertThat(check("2026-09-10", LineSubmission.jira("x", "SDA-FLOW", "ETR-DEPLOYED-OLD", 60), SDA_ONLY, "01")).isEmpty();
+        assertThat(check("2026-09-10", LineSubmission.jira("x", "SDA-FLOW", "ETR-CT", 60), SDA_ONLY, "01")).isEmpty();
     }
 
     @Test

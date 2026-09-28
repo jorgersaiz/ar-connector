@@ -13,6 +13,9 @@ import java.util.regex.Pattern;
  * día o una plantilla) para no provocar rechazos APV_04 / APV_05 / APV_06 /
  * APV_10 al día siguiente. Lógica pura, sin Spring.
  *
+ * Contrastadas con un envío real y su feedback (septiembre 2026, ~9.500
+ * líneas): ningún falso positivo ni falso negativo en las reglas comparables.
+ *
  * <pre>
  *  Proyectos SDA (APV_04, APV_04_EV)
  *   SDA_UNKNOWN                 el proyecto no está en el catálogo
@@ -20,18 +23,29 @@ import java.util.regex.Pattern;
  *   SDA_ENDED                   estado Ended y la fecha supera el Q de end_date + ended_margin del país
  *   SDA_ON_HOLD                 estado On hold y la fecha supera el Q de last_modified_status_date + onhold_margin
  *   SDA_EVOLUTIONARY_MISMATCH   SDA de evolutivo en actividad no evolutiva o viceversa
- *  Issues de Jira (APV_05, APV_05_EV, APV_05_EV_CT)
+ *  Issues de Jira (APV_05, APV_05_EV, APV_05_CT), SOLO si la actividad espera issue
  *   JIRA_UNKNOWN                la issue no está en el catálogo
- *   JIRA_WRONG_SDA              la issue no pertenece al SDA indicado (ni por catálogo ni por histórico)
+ *   JIRA_WRONG_SDA              la issue no estaba asociada a ese SDA en la fecha de actividad
  *   JIRA_DISABLED               disabled_date anterior a la fecha de actividad
  *   JIRA_STATUS                 Discarded: solo hasta el día del cambio; Deployed: hasta 30 días después
  *   JIRA_TYPE_MISMATCH          issue de conceptualization time en actividad que no lo es, o viceversa
- *   JIRA_EVOLUTIONARY_MISMATCH  feature de evolutivo (SDA evolutivo) en actividad no evolutiva, o viceversa
+ *   JIRA_EVOLUTIONARY_MISMATCH  feature de un SDA evolutivo en actividad no evolutiva, o viceversa
  *  Proyectos no SDA (APV_06)
  *   NON_SDA_UNKNOWN / NON_SDA_DISABLED
  *  Nodos ocultos (APV_10)
  *   TASK_TYPE_HIDDEN            la persona no puede imputar a ese nodo (o a un antecesor) ese día
  * </pre>
+ *
+ * Particularidades observadas en los datos reales:
+ *  - Si la actividad NO espera issue de Jira, Activity Report no valida la
+ *    columna jira_issue_id (acepta issues desconocidas o de otro SDA), así que
+ *    aquí tampoco se valida.
+ *  - Una issue puede estar asociada a varios SDA (varias filas en el catálogo)
+ *    o a ninguno ("Features de evolutivo" se imputan con issue y sin SDA).
+ *  - La asociación issue-SDA se evalúa en la FECHA DE ACTIVIDAD: si la feature
+ *    cambió de SDA el día 22, los días anteriores se validan contra el SDA
+ *    anterior, que el catálogo ya no informa; esos días no se pueden comprobar.
+ *  - Los hashes de persona de BBVA vienen en mayúsculas.
  *
  * Con {@link #disabled()} no se aplica ninguna regla (tests unitarios del formato).
  */
@@ -44,13 +58,14 @@ public final class CatalogRules {
     public static final String STATUS_DEPLOYED = "deployed";
     public static final String TYPE_CONCEPTUALIZATION_TIME = "conceptualization time";
 
-    /** "1Q 2022", "Q1 2022", "2022 Q1"... */
+    /** "1Q 2022", "1Q2022", "Q1 2022", "2022 Q1"... */
     private static final Pattern QUARTER = Pattern.compile("(?:([1-4])\\s*Q\\s*(\\d{4}))|(?:Q\\s*([1-4])\\s*(\\d{4}))|(?:(\\d{4})\\s*Q\\s*([1-4]))", Pattern.CASE_INSENSITIVE);
 
     public record SdaInfo(String id, String status, LocalDate disabledDate, String country, String endQuarter,
                           LocalDate lastModifiedStatusDate, boolean evolutionary) {
     }
 
+    /** Una fila del catálogo de issues: la misma issue se repite por cada SDA asociado. */
     public record IssueInfo(String id, String sdaProjectId, String status, LocalDate disabledDate, String type) {
     }
 
@@ -60,7 +75,8 @@ public final class CatalogRules {
     public record StatusChange(String issueKey, String status, LocalDate date) {
     }
 
-    public record IssueSdaLink(String issueKey, String sdaProjectId) {
+    /** Cambio de asociación issue-SDA; sdaProjectId null = la issue se quedó sin SDA ese día. */
+    public record IssueSdaLink(String issueKey, String sdaProjectId, LocalDate date) {
     }
 
     public record NonSdaInfo(String description, LocalDate disabledDate) {
@@ -71,10 +87,10 @@ public final class CatalogRules {
 
     private final boolean enabled;
     private final Map<String, SdaInfo> sdas = new HashMap<>();
-    private final Map<String, IssueInfo> issues = new HashMap<>();
+    private final Map<String, List<IssueInfo>> issues = new HashMap<>();
     private final Map<String, CountryInfo> countriesBySdaCountry = new HashMap<>();
     private final Map<String, List<StatusChange>> statusChangesByIssue = new HashMap<>();
-    private final Set<String> issueSdaLinks = new HashSet<>();
+    private final Map<String, List<IssueSdaLink>> linksByIssue = new HashMap<>();
     private final Map<String, NonSdaInfo> nonSdas = new HashMap<>();
     private final Set<String> hidden = new HashSet<>();
 
@@ -92,14 +108,14 @@ public final class CatalogRules {
                                   Collection<NonSdaInfo> nonSdas, Collection<HiddenNode> hiddenNodes) {
         CatalogRules r = new CatalogRules(true);
         sdas.forEach(s -> r.sdas.put(s.id(), s));
-        issues.forEach(i -> r.issues.put(i.id(), i));
+        issues.forEach(i -> r.issues.computeIfAbsent(i.id(), k -> new ArrayList<>()).add(i));
         countries.forEach(c -> {
             if (c.sdaCountry() != null) {
                 r.countriesBySdaCountry.put(c.sdaCountry().trim().toLowerCase(Locale.ROOT), c);
             }
         });
         statusChanges.forEach(s -> r.statusChangesByIssue.computeIfAbsent(s.issueKey(), k -> new ArrayList<>()).add(s));
-        links.forEach(l -> r.issueSdaLinks.add(l.issueKey() + "|" + l.sdaProjectId()));
+        links.forEach(l -> r.linksByIssue.computeIfAbsent(l.issueKey(), k -> new ArrayList<>()).add(l));
         nonSdas.forEach(n -> r.nonSdas.put(n.description(), n));
         hiddenNodes.forEach(h -> r.hidden.add(hiddenKey(h.personId(), h.date(), h.taskTypeCode())));
         return r;
@@ -115,13 +131,18 @@ public final class CatalogRules {
                 issues.stream().map(i -> new IssueInfo(i.getJiraIssueId(), i.getSdaProjectId(), i.getStatus(), i.getDisabledDate(), i.getType())).toList(),
                 countries.stream().map(c -> new CountryInfo(c.getSdaCountry(), c.getEndedMargin(), c.getOnholdMargin())).toList(),
                 statusHistory.stream().map(h -> new StatusChange(h.getJiraIssueKey(), h.getStatus(), h.getStatusChangeDate())).toList(),
-                sdaHistory.stream().map(h -> new IssueSdaLink(h.getJiraIssueKey(), h.getSdaProjectId())).toList(),
+                sdaHistory.stream().map(h -> new IssueSdaLink(h.getJiraIssueKey(), h.getSdaProjectId(), h.getChangeDate())).toList(),
                 nonSdas.stream().map(n -> new NonSdaInfo(n.getDescription(), n.getDisabledDate())).toList(),
                 hiddenNodes.stream().map(h -> new HiddenNode(h.getPersonId(), h.getDate(), h.getTaskTypeCode())).toList());
     }
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /** true si en esa actividad Activity Report espera (y por tanto valida) una issue de Jira. */
+    public static boolean expectsJiraIssue(TaskTree.Requirements req) {
+        return req.jiraIssue() || req.conceptualizationTime() || req.evolutionaryJiraIssue();
     }
 
     /**
@@ -156,12 +177,12 @@ public final class CatalogRules {
             }
         }
 
-        if (notBlank(line.jiraIssueId())) {
-            IssueInfo issue = issues.get(line.jiraIssueId().trim());
-            if (issue == null) {
+        if (notBlank(line.jiraIssueId()) && expectsJiraIssue(req)) {
+            List<IssueInfo> rows = issues.get(line.jiraIssueId().trim());
+            if (rows == null || rows.isEmpty()) {
                 problems.add(problem(uid, date, "JIRA_UNKNOWN", "la issue " + line.jiraIssueId() + " no está en el catálogo"));
             } else {
-                validateIssue(uid, date, issue, line.sdaProjectId(), sda, req, problems);
+                validateIssue(uid, date, rows, line.sdaProjectId(), sda, req, problems);
             }
         }
 
@@ -208,14 +229,17 @@ public final class CatalogRules {
         }
     }
 
-    private void validateIssue(String uid, LocalDate date, IssueInfo issue, String lineSda, SdaInfo sda,
+    private void validateIssue(String uid, LocalDate date, List<IssueInfo> rows, String lineSda, SdaInfo sda,
                                TaskTree.Requirements req, List<ValidationProblem> problems) {
+        IssueInfo issue = rows.get(0);   // estado, tipo y baja son de la issue, iguales en todas sus filas
         String wantedSda = lineSda == null ? "" : lineSda.trim();
-        boolean belongs = wantedSda.equals(issue.sdaProjectId() == null ? "" : issue.sdaProjectId().trim())
-                || issueSdaLinks.contains(issue.id() + "|" + wantedSda);
-        if (!wantedSda.isEmpty() && !belongs) {
-            problems.add(problem(uid, date, "JIRA_WRONG_SDA", "la issue " + issue.id() + " no pertenece al SDA " + wantedSda
-                    + " (catálogo: " + issue.sdaProjectId() + ")"));
+
+        if (!wantedSda.isEmpty()) {
+            Optional<Set<String>> associated = sdasAssociatedOn(issue.id(), rows, date);
+            if (associated.isPresent() && !associated.get().contains(wantedSda)) {
+                problems.add(problem(uid, date, "JIRA_WRONG_SDA", "la issue " + issue.id() + " no estaba asociada al SDA " + wantedSda
+                        + " el " + date + " (asociada a: " + (associated.get().isEmpty() ? "ninguno" : String.join(", ", associated.get())) + ")"));
+            }
         }
 
         if (issue.disabledDate() != null && date.isAfter(issue.disabledDate())) {
@@ -253,6 +277,41 @@ public final class CatalogRules {
                 problems.add(problem(uid, date, "JIRA_EVOLUTIONARY_MISMATCH", "la issue " + issue.id() + " pertenece a un SDA de evolutivo y la actividad no es de evolutivo"));
             }
         }
+    }
+
+    /**
+     * SDA a los que estaba asociada la issue en esa fecha. Vacío (Optional)
+     * si no se puede saber: la issue cambió de SDA DESPUÉS de esa fecha y el
+     * catálogo ya no informa la asociación anterior.
+     */
+    private Optional<Set<String>> sdasAssociatedOn(String issueKey, List<IssueInfo> catalogRows, LocalDate date) {
+        Set<String> current = new TreeSet<>();
+        for (IssueInfo row : catalogRows) {
+            if (notBlank(row.sdaProjectId())) {
+                current.add(row.sdaProjectId().trim());
+            }
+        }
+        List<IssueSdaLink> changes = linksByIssue.getOrDefault(issueKey, List.of());
+        if (changes.isEmpty()) {
+            return Optional.of(current);
+        }
+        LocalDate lastChange = changes.stream().map(IssueSdaLink::date).max(Comparator.naturalOrder()).orElseThrow();
+        if (!date.isBefore(lastChange)) {
+            // La fecha es posterior al último cambio: vale lo que dice el catálogo (y el propio cambio)
+            Set<String> set = new TreeSet<>(current);
+            changes.stream().filter(c -> c.date().equals(lastChange) && notBlank(c.sdaProjectId()))
+                    .forEach(c -> set.add(c.sdaProjectId().trim()));
+            return Optional.of(set);
+        }
+        Optional<LocalDate> previous = changes.stream().map(IssueSdaLink::date)
+                .filter(d -> !d.isAfter(date)).max(Comparator.naturalOrder());
+        if (previous.isEmpty()) {
+            return Optional.empty();
+        }
+        Set<String> set = new TreeSet<>();
+        changes.stream().filter(c -> c.date().equals(previous.get()) && notBlank(c.sdaProjectId()))
+                .forEach(c -> set.add(c.sdaProjectId().trim()));
+        return Optional.of(set);
     }
 
     /** Fecha más reciente en la que la issue alcanzó ese estado según el histórico (null si no consta). */
@@ -293,8 +352,9 @@ public final class CatalogRules {
         return year * 4 + (q - 1);
     }
 
+    /** Los hashes de persona se comparan sin distinguir mayúsculas (BBVA los devuelve en mayúsculas). */
     private static String hiddenKey(String personId, LocalDate date, String code) {
-        return personId + "|" + date + "|" + code;
+        return (personId == null ? "" : personId.trim().toUpperCase(Locale.ROOT)) + "|" + date + "|" + code;
     }
 
     private static ValidationProblem problem(String uid, LocalDate date, String code, String message) {

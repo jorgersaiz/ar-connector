@@ -5,15 +5,21 @@ import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
 
-/** Fila de un CSV con acceso tipado por nombre de columna (insensible a mayúsculas). */
+/**
+ * Fila de un CSV con acceso tipado por nombre de columna (insensible a
+ * mayúsculas). Guarda solo su array de valores; el índice de columnas es
+ * compartido por todas las filas del fichero.
+ */
 public final class CsvRow {
 
     private final int lineNumber;
-    private final Map<String, String> values;
+    private final Map<String, Integer> index;
+    private final String[] values;
 
-    CsvRow(int lineNumber, Map<String, String> valuesByLowerCaseHeader) {
+    CsvRow(int lineNumber, Map<String, Integer> indexByLowerCaseHeader, String[] values) {
         this.lineNumber = lineNumber;
-        this.values = valuesByLowerCaseHeader;
+        this.index = indexByLowerCaseHeader;
+        this.values = values;
     }
 
     public int lineNumber() {
@@ -22,8 +28,11 @@ public final class CsvRow {
 
     /** Valor recortado; cadena vacía si la columna no existe o está vacía. */
     public String text(String column) {
-        String v = values.get(column.toLowerCase(Locale.ROOT));
-        return v == null ? "" : v.trim();
+        Integer i = index.get(column.toLowerCase(Locale.ROOT));
+        if (i == null || i >= values.length) {
+            return "";
+        }
+        return values[i].trim();
     }
 
     /** Valor recortado o null si está vacío. */

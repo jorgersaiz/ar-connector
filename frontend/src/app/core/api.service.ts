@@ -87,11 +87,17 @@ export class ApiService {
   taskTypes(): Observable<TaskType[]> {
     return this.http.get<TaskType[]>(`${this.base}/catalogs/task-types`);
   }
-  sdaProjects(): Observable<SdaProject[]> {
-    return this.http.get<SdaProject[]>(`${this.base}/catalogs/sda-projects`);
+  /** Búsqueda en servidor: el catálogo real tiene más de 11.000 proyectos. */
+  sdaProjects(q: string, evolutionary: boolean | null, limit = 50): Observable<SdaProject[]> {
+    return this.http.get<SdaProject[]>(`${this.base}/catalogs/sda-projects`, {
+      params: this.params({ q, evolutionary: evolutionary === null ? '' : String(evolutionary), limit }),
+    });
   }
-  jiraIssues(sdaProjectId: string): Observable<JiraIssue[]> {
-    return this.http.get<JiraIssue[]>(`${this.base}/catalogs/jira-issues`, { params: this.params({ sdaProjectId }) });
+  /** Búsqueda en servidor: el catálogo real tiene más de 260.000 issues. */
+  jiraIssues(q: string, sdaProjectId: string | null, withoutSda: boolean, limit = 50): Observable<JiraIssue[]> {
+    return this.http.get<JiraIssue[]>(`${this.base}/catalogs/jira-issues`, {
+      params: this.params({ q, sdaProjectId: sdaProjectId ?? '', withoutSda, limit }),
+    });
   }
   nonSdaProjects(): Observable<NonSdaProject[]> {
     return this.http.get<NonSdaProject[]>(`${this.base}/catalogs/non-sda-projects`);

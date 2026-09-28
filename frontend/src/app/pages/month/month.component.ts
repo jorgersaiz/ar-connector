@@ -12,6 +12,7 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { CatalogService } from '../../core/catalog.service';
 import { NotifyService } from '../../core/notify.service';
+import { rejectCodeText } from '../../core/reject-codes';
 import { DayView, MonthView, Person, TaskType } from '../../core/models';
 import { todayIso, weekdayShort } from '../../core/dates';
 import { confirm } from '../../shared/confirm-dialog.component';
@@ -269,8 +270,9 @@ export class MonthComponent implements OnInit {
   }
 
   rejectTooltip(d: DayView): string {
-    const lines = d.lines.filter((l) => l.rejectReason).map((l) => `${l.taskTypeCode}: ${l.rejectReason}`);
-    if (d.rejectReason) lines.unshift(`Día: ${d.rejectReason}`);
+    const lines = d.lines.filter((l) => l.rejectReason)
+      .map((l) => `${l.taskTypeCode}: ${l.rejectReason}. ${rejectCodeText(l.rejectReason)}`);
+    if (d.rejectReason) lines.unshift(`Día: ${d.rejectReason}. ${rejectCodeText(d.rejectReason)}`);
     return lines.join('\n');
   }
 

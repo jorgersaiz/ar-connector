@@ -31,7 +31,7 @@ import java.util.*;
  *  TREE_NODE_NOT_SELECTABLE  nodo intermedio (can_be_selected = false)
  *  TREE_NODE_DISABLED        nodo dado de baja antes de la fecha de actividad
  *  SDA_REQUIRED / SDA_NOT_ALLOWED
- *  JIRA_REQUIRED / JIRA_NOT_ALLOWED / JIRA_WITHOUT_SDA
+ *  JIRA_REQUIRED             la actividad exige issue de Jira (donde no la exige, BBVA no la valida)
  *  NON_SDA_REQUIRED / NON_SDA_NOT_ALLOWED
  *  TIME_OUT_OF_RANGE         minutos fuera de 1..1440
  *  TIME_DAY_EXCEEDED         la suma del día supera 1440
@@ -256,14 +256,11 @@ public final class ActivitiesFileBuilder {
         if (!req.sdaProject() && hasSda) {
             problems.add(problem(day, "SDA_NOT_ALLOWED", "la actividad " + node.code() + " no admite proyecto SDA"));
         }
-        if (req.jiraIssue() && !hasJira) {
+        // Issue de Jira: obligatoria si la actividad la exige (o exige conceptualization time).
+        // Donde no se exige, Activity Report no la valida y la acepta tal cual; y puede ir sin
+        // SDA ("Features de evolutivo"). Comprobado con un envío real y su feedback.
+        if ((req.jiraIssue() || req.conceptualizationTime()) && !hasJira) {
             problems.add(problem(day, "JIRA_REQUIRED", "la actividad " + node.code() + " exige issue de Jira"));
-        }
-        if (!req.jiraIssue() && hasJira) {
-            problems.add(problem(day, "JIRA_NOT_ALLOWED", "la actividad " + node.code() + " no admite issue de Jira"));
-        }
-        if (hasJira && !hasSda) {
-            problems.add(problem(day, "JIRA_WITHOUT_SDA", "una issue de Jira debe ir acompañada de su proyecto SDA"));
         }
         if (req.nonSdaProject() && !hasNonSda) {
             problems.add(problem(day, "NON_SDA_REQUIRED", "la actividad " + node.code() + " exige proyecto no SDA"));

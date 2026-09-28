@@ -4,9 +4,12 @@ import com.vendor.arconnector.catalog.SemicolonCsv;
 import com.vendor.arconnector.client.ActivityReportClient;
 import com.vendor.arconnector.client.ActivityReportClientException;
 import com.vendor.arconnector.domain.ActivityDay;
+import com.vendor.arconnector.domain.ApiCall;
 import com.vendor.arconnector.domain.CallChannel;
 import com.vendor.arconnector.domain.FeedbackFile;
 import com.vendor.arconnector.domain.FeedbackRow;
+import com.vendor.arconnector.feedback.ActivityRowKeys;
+import com.vendor.arconnector.feedback.FeedbackLocator;
 import com.vendor.arconnector.feedback.FeedbackMatcher;
 import com.vendor.arconnector.feedback.FeedbackParser;
 import com.vendor.arconnector.repository.ActivityDayRepository;
@@ -23,14 +26,18 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
  * Descarga el feedback de cada fichero de imputaciones enviado y lo aplica a
  * los días correspondientes (rechazos APV_xx por línea o por día).
  *
- * El feedback de un envío del día N está disponible a partir de las 3:00 del
- * día N+1. Si todavía no existe (404), se reintenta en la siguiente ejecución.
+ * El feedback se publica a partir de las 3:00 del día de procesamiento. Como
+ * no está claro si se pide con la fecha de envío o con la de procesamiento,
+ * {@link FeedbackLocator} prueba ambas y comprueba por contenido que el
+ * fichero corresponde a lo enviado. Si todavía no existe, se reintenta en la
+ * siguiente ejecución.
  */
 @Service
 public class FeedbackService {
@@ -88,46 +95,77 @@ public class FeedbackService {
 
     @Transactional
     public Result sync(LocalDate submissionDate) {
-        byte[] content;
+        Optional<byte[]> sent = lastFileSentOn(submissionDate);
+        if (sent.isEmpty()) {
+            return new Result(submissionDate, Result.Status.FAILED, 0, 0, 0, 0,
+                    "no consta ningún fichero enviado con éxito el " + submissionDate);
+        }
+
+        Optional<FeedbackLocator.Found> found;
         try {
-            content = client.downloadActivitiesFeedback(submissionDate);
+            found = FeedbackLocator.locate(submissionDate, LocalDate.now(clock), this::download,
+                    ActivityRowKeys::of, ActivityRowKeys.of(sent.get()));
         } catch (ActivityReportClientException e) {
-            if (e.getHttpStatus() != null && e.getHttpStatus() == 404) {
-                log.info("Feedback del envío {} todavía no disponible", submissionDate);
-                return new Result(submissionDate, Result.Status.NOT_AVAILABLE_YET, 0, 0, 0, 0, null);
-            }
             log.error("Error descargando el feedback del envío {}: {}", submissionDate, e.getMessage());
             return new Result(submissionDate, Result.Status.FAILED, 0, 0, 0, 0, e.getMessage());
         }
-
-        try {
-            List<FeedbackRow> rows = FeedbackParser.parse(SemicolonCsv.parse(content));
-
-            FeedbackFile file = feedbackFileRepository.findBySubmissionDateWithRows(submissionDate)
-                    .orElseGet(() -> new FeedbackFile(submissionDate));
-            file.setDownloadedAt(Instant.now(clock));
-            file.setContent(content);
-            file.replaceRows(rows);
-
-            List<ActivityDay> sentDays = activityDayRepository.findByLastSentDateWithLines(submissionDate);
-            FeedbackMatcher.Result match = FeedbackMatcher.apply(rows, sentDays, submissionDate);
-            file.setMatchedCount(match.matchedRows());
-
-            feedbackFileRepository.save(file);
-            activityDayRepository.saveAll(sentDays);
-
-            if (match.unmatchedRows() > 0) {
-                log.warn("Feedback del envío {}: {} fila(s) no casan con ningún día enviado (¿imputaciones hechas a mano en Activity Report?)",
-                        submissionDate, match.unmatchedRows());
-            }
-            log.info("Feedback del envío {} aplicado: {} filas, {} rechazos, {} casadas, {} sin casar",
-                    submissionDate, rows.size(), file.getRejectedCount(), match.matchedRows(), match.unmatchedRows());
-            return new Result(submissionDate, Result.Status.APPLIED, rows.size(), file.getRejectedCount(),
-                    match.matchedRows(), match.unmatchedRows(), null);
-
-        } catch (RuntimeException e) {
-            log.error("Error procesando el feedback del envío {}: {}", submissionDate, e.getMessage());
-            throw e;   // deshace la transacción; el job lo reintentará
+        if (found.isEmpty()) {
+            log.info("Feedback del envío {} todavía no disponible", submissionDate);
+            return new Result(submissionDate, Result.Status.NOT_AVAILABLE_YET, 0, 0, 0, 0, null);
         }
+
+        byte[] content = found.get().content();
+        List<FeedbackRow> rows = FeedbackParser.parse(SemicolonCsv.parse(content));
+
+        FeedbackFile file = feedbackFileRepository.findBySubmissionDateWithRows(submissionDate)
+                .orElseGet(() -> new FeedbackFile(submissionDate));
+        file.setFeedbackDate(found.get().requestedDate());
+        file.setDownloadedAt(Instant.now(clock));
+        file.setContent(content);
+        file.replaceRows(rows);
+
+        List<ActivityDay> sentDays = activityDayRepository.findByLastSentDateWithLines(submissionDate);
+        FeedbackMatcher.Result match = FeedbackMatcher.apply(rows, sentDays, submissionDate);
+        file.setMatchedCount(match.matchedRows());
+
+        feedbackFileRepository.save(file);
+        activityDayRepository.saveAll(sentDays);
+
+        if (match.unmatchedRows() > 0) {
+            log.warn("Feedback del envío {}: {} fila(s) no casan con ningún día enviado", submissionDate, match.unmatchedRows());
+        }
+        log.info("Feedback del envío {} (publicado con fecha {}) aplicado: {} filas, {} rechazos, {} casadas, {} sin casar",
+                submissionDate, found.get().requestedDate(), rows.size(), file.getRejectedCount(),
+                match.matchedRows(), match.unmatchedRows());
+        return new Result(submissionDate, Result.Status.APPLIED, rows.size(), file.getRejectedCount(),
+                match.matchedRows(), match.unmatchedRows(), null);
+    }
+
+    /** Descarga el feedback de una fecha; vacío si Activity Report dice que no existe. */
+    private Optional<byte[]> download(LocalDate date) {
+        try {
+            return Optional.of(client.downloadActivitiesFeedback(date));
+        } catch (ActivityReportClientException e) {
+            if (e.isFileNotFound()) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    /** Activity Report procesa el ÚLTIMO fichero recibido cada día: ese es el que hay que comparar. */
+    private Optional<byte[]> lastFileSentOn(LocalDate submissionDate) {
+        return quotaCallsOn(submissionDate).stream()
+                .filter(ApiCall::isOk)
+                .filter(c -> c.getContent() != null)
+                .reduce((first, second) -> second)
+                .map(ApiCall::getContent);
+    }
+
+    private List<ApiCall> quotaCallsOn(LocalDate day) {
+        Instant from = day.atStartOfDay(clock.getZone()).toInstant();
+        Instant to = day.plusDays(1).atStartOfDay(clock.getZone()).toInstant();
+        return apiCallRepository.findByChannelAndCalledAtGreaterThanEqualAndCalledAtLessThanOrderByCalledAtAsc(
+                CallChannel.ACTIVITIES_UPLOAD, from, to);
     }
 }

@@ -3,16 +3,20 @@ import { Observable, map, shareReplay } from 'rxjs';
 import { ApiService } from './api.service';
 import { JiraIssue, NonSdaProject, SdaProject, TaskType } from './models';
 
-/** Caché de catálogos durante la sesión (se invalida tras "Sincronizar ahora"). */
+/**
+ * Catálogos para los selectores.
+ *
+ * Tipos de tarea (~600) y proyectos no SDA (~1.400) se cargan una vez por
+ * sesión y se filtran en el navegador. Proyectos SDA (~11.000) e issues de
+ * Jira (~270.000) se buscan en el servidor mientras se escribe.
+ */
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   private readonly api = inject(ApiService);
 
   private taskTypes$?: Observable<TaskType[]>;
   private selectableTaskTypes$?: Observable<TaskType[]>;
-  private sdaProjects$?: Observable<SdaProject[]>;
   private nonSdaProjects$?: Observable<NonSdaProject[]>;
-  private readonly jiraIssues = new Map<string, Observable<JiraIssue[]>>();
 
   taskTypes(): Observable<TaskType[]> {
     this.taskTypes$ ??= this.api.taskTypes().pipe(shareReplay(1));
@@ -28,22 +32,17 @@ export class CatalogService {
     return this.selectableTaskTypes$;
   }
 
-  /** Proyectos SDA activos (sin disabledDate). */
-  sdaProjects(): Observable<SdaProject[]> {
-    this.sdaProjects$ ??= this.api.sdaProjects().pipe(
-      map((list) => list.filter((p) => !p.disabledDate).sort((a, b) => a.sdaProjectId.localeCompare(b.sdaProjectId))),
-      shareReplay(1),
-    );
-    return this.sdaProjects$;
+  /** Proyectos SDA vigentes que contienen el texto en su código o descripción (máx. 50). */
+  searchSdaProjects(q: string, evolutionary: boolean | null): Observable<SdaProject[]> {
+    return this.api.sdaProjects(q.trim(), evolutionary);
   }
 
-  jiraIssuesOf(sdaProjectId: string): Observable<JiraIssue[]> {
-    let obs = this.jiraIssues.get(sdaProjectId);
-    if (!obs) {
-      obs = this.api.jiraIssues(sdaProjectId).pipe(shareReplay(1));
-      this.jiraIssues.set(sdaProjectId, obs);
-    }
-    return obs;
+  /**
+   * Issues de Jira vigentes que contienen el texto (máx. 50), dentro del SDA
+   * indicado o, si la actividad no lleva SDA, solo las que no tienen proyecto.
+   */
+  searchJiraIssues(q: string, sdaProjectId: string | null, withoutSda: boolean): Observable<JiraIssue[]> {
+    return this.api.jiraIssues(q.trim(), sdaProjectId, withoutSda);
   }
 
   nonSdaProjects(): Observable<NonSdaProject[]> {
@@ -57,8 +56,6 @@ export class CatalogService {
   invalidate(): void {
     this.taskTypes$ = undefined;
     this.selectableTaskTypes$ = undefined;
-    this.sdaProjects$ = undefined;
     this.nonSdaProjects$ = undefined;
-    this.jiraIssues.clear();
   }
 }

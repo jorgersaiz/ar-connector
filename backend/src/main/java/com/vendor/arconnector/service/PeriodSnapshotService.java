@@ -99,7 +99,7 @@ public class PeriodSnapshotService {
         PeriodSnapshot snapshot = new PeriodSnapshotBuilder(periodPolicy, calendar)
                 .build(submissionDate, persons, existing, templates);
 
-        ActivitiesFileBuilder.LenientResult built = new ActivitiesFileBuilder(tree, periodPolicy, catalogRulesService.load())
+        ActivitiesFileBuilder.LenientResult built = new ActivitiesFileBuilder(tree, periodPolicy, catalogRulesService.loadFor(snapshot.days()))
                 .buildSkippingInvalid(snapshot.days(), submissionDate);
 
         List<ActivityDay> persisted = new ArrayList<>(existing);

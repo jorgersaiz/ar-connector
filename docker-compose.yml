@@ -22,20 +22,30 @@ services:
       db:
         condition: service_healthy
     environment:
-      DB_URL: jdbc:postgresql://db:5432/ar_connector
+      # reWriteBatchedInserts: la carga de catálogos inserta cientos de miles de filas por lotes
+      DB_URL: jdbc:postgresql://db:5432/ar_connector?reWriteBatchedInserts=true
       DB_USER: ar_connector
       DB_PASSWORD: changeme
-      # Credenciales de Activity Report: definir en un .env local (no versionado).
-      AR_BASE_URL: ${AR_BASE_URL:-https://sandbox.example.com/timereport/api/vendors}
+      # Valores en un fichero .env local (no versionado); ver .env.example
+      AR_BASE_URL: ${AR_BASE_URL:-https://dev-bbva-gateway.appspot.com/timereport/api/vendors}
       AR_REQUESTOR_EMAIL: ${AR_REQUESTOR_EMAIL:-}
       AR_GPS_CODES: ${AR_GPS_CODES:-}
       AR_GEOGRAPHIES: ${AR_GEOGRAPHIES:-}
       # Mientras no haya credenciales, AR_CLIENT=filesystem lee los catálogos de ./samples/catalogues
       AR_CLIENT: ${AR_CLIENT:-http}
-      AR_LOCAL_DIR: /app/samples/catalogues
+      AR_LOCAL_DIR: ${AR_LOCAL_DIR:-/app/samples/catalogues}
+      # El catálogo real de issues de Jira ocupa 29 MB y 270.000 filas
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xmx1g}
       # Usuario MANAGER inicial del panel (solo se crea la primera vez)
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@arktic.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin1234}
+      PANEL_URL: ${PANEL_URL:-http://localhost:4200}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-ar-connector@arktic.local}
     volumes:
       - ./samples:/app/samples
     ports:

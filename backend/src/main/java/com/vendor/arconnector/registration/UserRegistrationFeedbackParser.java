@@ -10,12 +10,24 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Feedback del registro de usuarios: "el mismo formato que el fichero de
- * registro de usuarios" (uids) más "uid" (anonimizado) y "reason"
- * (APV_UR_xx en los rechazos).
+ * Feedback del registro de usuarios. El fichero real tiene dos columnas:
+ *
+ * <pre>
+ *   uid;reason
+ *   E7713342BE08...;APV_UR_01
+ * </pre>
+ *
+ * donde "uid" es el SHA256 del uid en mayúsculas, escrito en hexadecimal en
+ * mayúsculas, y "reason" viene vacío si la persona quedó registrada. El uid en
+ * claro NO se devuelve (el documento sugería una columna "uids" que no existe;
+ * se sigue aceptando por si apareciera).
  */
 public final class UserRegistrationFeedbackParser {
 
+    /**
+     * @param uids uid en claro en mayúsculas, o "" si el fichero no lo trae
+     * @param uid  hash del uid en mayúsculas, o "" si el fichero no lo trae
+     */
     public record Row(int lineNumber, String uids, String uid, String reason) {
         public boolean isRejected() {
             return reason != null && !reason.isBlank();
@@ -26,7 +38,11 @@ public final class UserRegistrationFeedbackParser {
     }
 
     public static List<Row> parse(CsvTable table) {
-        table.requireColumns("uids", "reason");
+        table.requireColumns("reason");
+        if (!table.hasColumn("uid") && !table.hasColumn("uids")) {
+            throw new CatalogParseException(List.of("faltan columnas en la cabecera: uid (cabecera recibida: "
+                    + String.join(";", table.headers()) + ")"));
+        }
         List<Row> rows = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         for (CsvRow row : table.rows()) {
@@ -34,9 +50,9 @@ public final class UserRegistrationFeedbackParser {
                 String uids = row.text("uids");
                 String uid = row.text("uid");
                 if (uids.isEmpty() && uid.isEmpty()) {
-                    throw new CatalogRowException(row.lineNumber(), "fila sin uids ni uid");
+                    throw new CatalogRowException(row.lineNumber(), "fila sin identificador de usuario");
                 }
-                rows.add(new Row(row.lineNumber(), uids.toUpperCase(Locale.ROOT), uid.toLowerCase(Locale.ROOT), row.optionalText("reason")));
+                rows.add(new Row(row.lineNumber(), uids.toUpperCase(Locale.ROOT), uid.toUpperCase(Locale.ROOT), row.optionalText("reason")));
             } catch (CatalogRowException e) {
                 errors.add(e.getMessage());
             }

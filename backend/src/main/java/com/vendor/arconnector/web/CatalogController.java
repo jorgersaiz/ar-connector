@@ -32,7 +32,13 @@ public class CatalogController {
 
     /** Nodo del árbol para el selector, con las exigencias ya heredadas del camino. */
     public record TaskTypeDto(String code, String parentCode, String path, String descriptionEs, boolean canBeSelected,
-                              boolean enabled, boolean requiresSdaProject, boolean requiresJiraIssue, boolean requiresNonSdaProject) {
+                              boolean enabled, boolean requiresSdaProject, boolean requiresJiraIssue, boolean requiresNonSdaProject,
+                              boolean requiresEvolutionarySda, boolean requiresEvolutionaryJiraIssue,
+                              boolean requiresConceptualizationTime,
+                              /* la issue es obligatoria (la exige el nodo o exige conceptualization time) */
+                              boolean jiraIssueRequired,
+                              /* Activity Report valida la issue en este nodo: tiene sentido pedirla */
+                              boolean jiraIssueExpected) {
     }
 
     public record SdaProjectDto(String sdaProjectId, String description, String status, boolean evolutionarySda, LocalDate disabledDate) {
@@ -122,26 +128,45 @@ public class CatalogController {
                     }
                     boolean enabled = t.getDisabledDate() == null || !today.isAfter(t.getDisabledDate());
                     return new TaskTypeDto(t.getTaskTypeId(), t.getTaskTypeParentId(), path, t.getDescriptionEs(),
-                            t.isCanBeSelected(), enabled, req.sdaProject(), req.jiraIssue(), req.nonSdaProject());
+                            t.isCanBeSelected(), enabled, req.sdaProject(), req.jiraIssue(), req.nonSdaProject(),
+                            req.evolutionarySda(), req.evolutionaryJiraIssue(), req.conceptualizationTime(),
+                            req.jiraIssue() || req.conceptualizationTime(),
+                            com.vendor.arconnector.activities.CatalogRules.expectsJiraIssue(req));
                 })
                 .toList();
     }
 
+    /**
+     * Búsqueda de proyectos SDA para el selector (el catálogo real tiene más de
+     * 11.000): por id o descripción, como mucho {@code limit} resultados.
+     */
     @GetMapping("/sda-projects")
-    public List<SdaProjectDto> sdaProjects() {
-        return sdaProjectRepository.findAll().stream()
-                .sorted(Comparator.comparing(SdaProject::getSdaProjectId))
+    public List<SdaProjectDto> sdaProjects(@RequestParam(defaultValue = "") String q,
+                                           @RequestParam(defaultValue = "") String evolutionary,
+                                           @RequestParam(defaultValue = "50") int limit) {
+        String evo = evolutionary.equalsIgnoreCase("true") ? "true" : evolutionary.equalsIgnoreCase("false") ? "false" : "";
+        return sdaProjectRepository.search(q.trim(), evo, page(limit)).stream()
                 .map(p -> new SdaProjectDto(p.getSdaProjectId(), p.getDescription(), p.getStatus(), p.isEvolutionarySda(), p.getDisabledDate()))
                 .toList();
     }
 
+    /**
+     * Búsqueda de issues de Jira para el selector (el catálogo real tiene más de
+     * 260.000): por id o descripción, opcionalmente dentro de un SDA o solo las
+     * que no tienen SDA. Una issue asociada a varios SDA sale una vez por SDA.
+     */
     @GetMapping("/jira-issues")
-    public List<JiraIssueDto> jiraIssues(@RequestParam(required = false) String sdaProjectId) {
-        return jiraIssueRepository.findAll().stream()
-                .filter(i -> sdaProjectId == null || sdaProjectId.isBlank() || sdaProjectId.equals(i.getSdaProjectId()))
-                .sorted(Comparator.comparing(JiraIssue::getJiraIssueId))
+    public List<JiraIssueDto> jiraIssues(@RequestParam(defaultValue = "") String q,
+                                         @RequestParam(defaultValue = "") String sdaProjectId,
+                                         @RequestParam(defaultValue = "false") boolean withoutSda,
+                                         @RequestParam(defaultValue = "50") int limit) {
+        return jiraIssueRepository.search(q.trim(), sdaProjectId.trim(), withoutSda, page(limit)).stream()
                 .map(i -> new JiraIssueDto(i.getJiraIssueId(), i.getDescription(), i.getSdaProjectId(), i.getStatus(), i.getType()))
                 .toList();
+    }
+
+    private static org.springframework.data.domain.Pageable page(int limit) {
+        return org.springframework.data.domain.PageRequest.of(0, Math.min(Math.max(limit, 1), 200));
     }
 
     @GetMapping("/non-sda-projects")

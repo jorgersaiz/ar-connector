@@ -146,6 +146,13 @@ export interface TaskType {
   requiresSdaProject: boolean;
   requiresJiraIssue: boolean;
   requiresNonSdaProject: boolean;
+  requiresEvolutionarySda: boolean;
+  requiresEvolutionaryJiraIssue: boolean;
+  requiresConceptualizationTime: boolean;
+  /** La issue de Jira es obligatoria en esta actividad. */
+  jiraIssueRequired: boolean;
+  /** Activity Report valida la issue en esta actividad: tiene sentido pedirla (puede ser opcional). */
+  jiraIssueExpected: boolean;
 }
 
 export interface SdaProject {

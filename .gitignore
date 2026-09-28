@@ -1,4 +1,4 @@
-# Secretos y configuración local
+# Secretos y configuraciÃƒÂ³n local
 .env
 *.pem
 *.json.credentials
@@ -6,6 +6,10 @@
 # Ficheros generados por el cliente en modo filesystem
 samples/catalogues/outbox/
 samples/catalogues/feedback/
+
+# Ficheros reales de ejemplo de BBVA: son datos del banco, no se versionan
+samples/real/
+samples/real-catalogues/
 
 # Build
 backend/target/

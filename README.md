@@ -29,14 +29,14 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | Pieza | Regla del documento que aplica |
 |---|---|
 | `PersonIdHasher` | `person_id` = SHA256 del uid en mayúsculas |
-| `ModifiablePeriodPolicy` | 1ª quincena modificable del 1 al 20, 2ª del 15 al 5 del mes+1, validación sobre el día de procesamiento (N+1), sin futuro |
+| `ModifiablePeriodPolicy` | 1ª quincena modificable del 1 al 20, 2ª del 15 al 5 del mes+1, validación sobre el día de procesamiento (N+1), sin futuro. El procesamiento no corre en fin de semana: si el último día de envío (19 o 4) cae en sábado o domingo, se adelanta al viernes |
 | `TaskTree` | cinco niveles repitiendo el último, solo nodos `can_be_selected`, `disabled_date` inclusivo, exigencia de SDA/Jira/no SDA heredada del camino |
 | `ActivitiesFileBuilder` | cabecera y separador `;`, minutos 1..1440, suma diaria ≤ 1440, día no imputable como fila con solo fecha y `person_id`, `technology_detail` siempre vacío, líneas duplicadas (APV_09), campos con `;` |
 | `WorkCalendar` | fines de semana y festivos nacionales no se envían; festivos locales van como día no imputable |
 | `PeriodSnapshotBuilder` | reconstruye el periodo abierto completo (BBVA sobreescribe el día entero y solo procesa el último fichero del día) |
 | `PeriodSnapshotService` | orquestación con Spring/JPA: carga datos, genera fichero, persiste los días materializados desde plantilla |
-| `SemicolonCsv` + `CatalogParsers` | lectura de los 8 catálogos por nombre de columna (no por posición), con las columnas del documento; errores por fila con nº de línea |
-| `CatalogSyncService` + `CatalogStore` | reemplazo completo de cada catálogo en una transacción; un catálogo que falla conserva su versión anterior y no bloquea al resto; estado por catálogo en `catalog_sync_status` |
+| `SemicolonCsv` + `CatalogParsers` | lectura de los 8 catálogos por nombre de columna (no por posición), con las columnas de los ficheros reales; descomprime zip y gzip; errores por fila con nº de línea |
+| `CatalogSyncService` + `CatalogStore` | reemplazo completo de cada catálogo en una transacción, con inserciones por lotes (JDBC): los 8 catálogos reales, medio millón de filas, se cargan en unos 8 s; un catálogo que falla conserva su versión anterior y no bloquea al resto; estado por catálogo en `catalog_sync_status` |
 | `CatalogSyncJob` | sincronización diaria a las 4:00 (los ficheros están disponibles desde las 3:00) |
 | `GET/POST /api/catalogs` | estado de cada catálogo y sincronización manual (`POST /api/catalogs/sync`, `POST /api/catalogs/{nombre}/sync`) |
 | `FileSystemActivityReportClient` | modo `AR_CLIENT=filesystem`: lee `samples/catalogues/<catalogo>.csv` y escribe los ficheros subidos en `samples/catalogues/outbox/`, para probar sin credenciales |
@@ -44,7 +44,7 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `ActivitiesUploadService` | reconstruye el periodo abierto, excluye los días inválidos (no bloquea al equipo), no gasta cuota si el fichero es idéntico al último enviado con éxito hoy, registra cada llamada con el fichero exacto en `api_call` y marca los días enviados |
 | `UploadJob` | envío a las 13:00, 18:00 y 21:00 todos los días (los cortes pueden caer en fin de semana) |
 | `/api/uploads` | `GET /preview` (fichero sin enviar), `POST /run`, `GET /quota`, `GET` histórico, `GET /{id}/file` |
-| `FeedbackService` + `FeedbackMatcher` | descarga el feedback de cada envío OK (a partir de las 3:00 del día siguiente), guarda el fichero y sus filas, y marca el `rejectReason` (APV_xx) en la línea o el día correspondiente; un 404 es "todavía no disponible" y se reintenta |
+| `FeedbackService` + `FeedbackLocator` + `FeedbackMatcher` | descarga el feedback de cada envío OK (a partir de las 3:00 del día siguiente), guarda el fichero y sus filas, y marca el `rejectReason` (APV_xx) en la línea o el día correspondiente. El fichero lleva la fecha de procesamiento, no la de envío: se prueban la fecha de envío y las siguientes y se acepta el que corresponde a lo enviado. Un 404, o el 400 "Feedback file not found" que devuelve BBVA, es "todavía no disponible" y se reintenta |
 | `FeedbackSyncJob` | 4:30 y 10:30; `/api/feedback` para listar, forzar y ver rechazos |
 | `/api/persons` | alta, baja y edición de personas; plantillas por defecto (`/{id}/templates`); días explícitos (`/{id}/days/{fecha}`), validados contra el árbol al guardarlos |
 | `/api/holidays` | festivos por geografía y año |
@@ -55,14 +55,19 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `DashboardService` + `GET /api/dashboard` | situación del periodo para el manager: quincenas abiertas y sus cortes, cuota, último envío, feedback pendiente y, por persona, huecos, rechazos y días excluidos. Pantalla "Situación", página de inicio del manager |
 | `NotificationPlanner` + `NotificationService` | avisos diarios (9:00): recordatorio de huecos a la persona cuando el corte está a `NOTIFY_DAYS_BEFORE_CUTOFF` días (2 por defecto), rechazos pendientes, y resumen a los managers. Un aviso por destinatario, tipo y día. Sin SMTP (`MAIL_HOST`, `MAIL_ENABLED=true`) solo se registran en `notification` |
 | CSRF (`SecurityConfig`) | cookie `XSRF-TOKEN` + cabecera `X-XSRF-TOKEN` (receta de Spring Security para SPA); Angular la envía sola |
-| `UserRegistrationService` + `/api/registrations` | alta de personas nuevas en Activity Report: fichero `uids` con las PENDING (cuota propia), feedback `uids;uid;reason` al día siguiente que las deja REGISTERED (ajustando la fecha de alta al día siguiente del envío) o REJECTED con su APV_UR_xx. Pantalla "Altas en AR" |
-| `CatalogRules` | reglas que dependen de catálogos, aplicadas al guardar y al generar el fichero: SDA existente y vigente, márgenes en trimestres para Ended (desde `end_date`) y On hold (desde `last_modified_status_date`) según `countries`, SDA e issues de evolutivo solo en actividades de evolutivo, issues existentes y del SDA indicado (catálogo o histórico), Discarded solo hasta el día del cambio, Deployed hasta 30 días después, conceptualization time solo en su actividad, proyectos no SDA del catálogo, nodos ocultos por persona y día |
+| `UserRegistrationService` + `/api/registrations` | alta de personas nuevas en Activity Report: fichero `uids` con las PENDING (cuota propia), feedback `uid;reason` (hash en mayúsculas) al día siguiente que las deja REGISTERED (ajustando la fecha de alta al día siguiente del envío) o REJECTED con su APV_UR_xx. Pantalla "Altas en AR" |
+| `CatalogRules` | reglas que dependen de catálogos, aplicadas al guardar y al generar el fichero: SDA existente y vigente, márgenes en trimestres para Ended (desde `end_date`) y On hold (desde `last_modified_status_date`) según `countries`, SDA e issues de evolutivo solo en actividades de evolutivo, issues existentes y del SDA indicado en la fecha de actividad (catálogo o histórico), Discarded solo hasta el día del cambio, Deployed hasta 30 días después, conceptualization time solo en su actividad, proyectos no SDA del catálogo, nodos ocultos por persona y día. Las issues solo se validan en las actividades que las esperan, como hace Activity Report. Contrastadas con un envío real de 9.500 líneas y su feedback (`RealSamplesTest`): ninguna discrepancia |
+| `GET /api/catalogs/sda-projects`, `/jira-issues` | búsqueda en servidor para los selectores del panel (11.500 proyectos y 266.000 issues en los catálogos reales) |
+
+Las respuestas de BBVA de septiembre de 2026, lo que enseñan sus ficheros de
+ejemplo y lo que sigue pendiente están en `docs/respuestas-bbva-2026-09.md`.
 
 Pendiente (en este orden):
 
-1. Cliente HTTP firmado con la Service Account, cuando BBVA entregue la
-   documentación de consumo de APIs (el Requestor va en cabecera). Hoy
-   `PendingRequestAuthenticator` solo pone la cabecera `Requestor`.
+1. Cliente HTTP firmado con la Service Account. Falta el contenido de la guía
+   de consumo de APIs (exige iniciar sesión con cuenta de BBVA) y la
+   credencial. Hoy `PendingRequestAuthenticator` solo pone la cabecera
+   `Requestor`.
 2. Sustituir el login provisional por Entra ID.
 3. Tests de integración contra PostgreSQL (Testcontainers).
 4. Infraestructura Azure (Bicep) y pipeline de despliegue.
@@ -79,9 +84,18 @@ curl -X POST http://localhost:8080/api/catalogs/sync
 curl http://localhost:8080/api/catalogs
 ```
 
-Los ficheros de `samples/catalogues/` siguen las columnas del documento y
-sirven de plantilla para sustituirlos por muestras reales de BBVA en cuanto
-las faciliten.
+Los ficheros de `samples/catalogues/` son inventados y siguen el formato de
+los reales. Los de ejemplo que ha facilitado BBVA son datos suyos y no se
+versionan (`samples/real/` y `samples/real-catalogues/` están en `.gitignore`):
+
+- `samples/real/`: los CSV tal como los envió BBVA. Con ellos presentes,
+  `./mvnw test` ejecuta además `RealSamplesTest`, que compara las reglas del
+  conector con el veredicto de Activity Report línea a línea.
+- `samples/real-catalogues/`: los 8 catálogos renombrados como
+  `<catalogo>.csv`. Para arrancar con ellos:
+  `AR_CLIENT=filesystem AR_LOCAL_DIR=/app/samples/real-catalogues docker compose up --build -d`.
+
+Las variables de entorno están descritas en `.env.example`.
 
 Para probar el envío hace falta al menos una persona con plantilla (todavía
 no hay API de alta; se insertan en SQL):
@@ -149,7 +163,8 @@ docs/                                      Texto extraído del documento de BBVA
 - **Validar antes de enviar, no después.** El builder rechaza el fichero entero
   con la lista completa de problemas; BBVA ignora filas inválidas en silencio
   y solo lo cuenta en el feedback del día siguiente.
-- **`person_id` en hex minúsculas**: suposición a verificar contra el catálogo
-  `hidden_task_types`, que trae hashes generados por BBVA.
-- **Festivos NATIONAL vs LOCAL**: pendiente confirmar con BBVA qué festivos
-  conoce Activity Report por geografía.
+- **`person_id` en hex minúsculas**: Activity Report lo acepta así y lo
+  devuelve en mayúsculas (feedback, `hidden_task_types`), por lo que todas
+  las comparaciones de hash ignoran mayúsculas.
+- **Festivos NATIONAL vs LOCAL**: confirmado por BBVA que Activity Report
+  solo conoce los nacionales; los locales se envían como día no imputable.

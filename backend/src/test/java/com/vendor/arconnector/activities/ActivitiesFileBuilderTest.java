@@ -26,7 +26,8 @@ class ActivitiesFileBuilderTest {
             Node.leaf("02.01", "02"),                                                  // proyecto no SDA
             Node.branch("03", null),
             Node.leaf("03.01", "03"),                                                  // formación, sin proyecto
-            new Node("03.02", "03", true, LocalDate.parse("2026-03-10"), false, false, false, false)
+            new Node("03.02", "03", true, LocalDate.parse("2026-03-10"), false, false, false, false),
+            new Node("03.04", "03", true, null, false, true, false, false)             // feature de evolutivo: issue sin SDA
     ));
 
     private static final LocalDate SUBMISSION = LocalDate.parse("2026-03-18");
@@ -198,17 +199,28 @@ class ActivitiesFileBuilderTest {
     }
 
     @Test
-    void jiraIssueSinSdaProjectSeRechaza() {
+    void enActividadDeProyectoSdaLaIssueSinSdaSeRechazaPorFaltarElSda() {
         ActivitiesFileValidationException ex = failure(
                 worked("2026-03-10", new LineSubmission("01.01.02", null, "ETR-01", null, 60)));
-        assertThat(ex.hasCode("JIRA_WITHOUT_SDA")).isTrue();
-        assertThat(ex.hasCode("SDA_REQUIRED")).isTrue();
+        assertThat(ex.getProblems()).extracting(ValidationProblem::code).containsExactly("SDA_REQUIRED");
     }
 
     @Test
-    void jiraIssueEnActividadQueNoLoAdmiteSeRechaza() {
-        assertThat(failure(worked("2026-03-10", LineSubmission.jira("01.01.01", "SDATOOL-1", "ETR-01", 60)))
-                .hasCode("JIRA_NOT_ALLOWED")).isTrue();
+    void featureDeEvolutivoVaConIssueYSinSda() {
+        // Caso real: "03.04.02 Features de evolutivo" exige issue pero no cuelga de proyectos SDA
+        ActivitiesFile ok = builder.build(List.of(
+                worked("2026-03-10", new LineSubmission("03.04", null, "EVO-147", null, 480))), SUBMISSION);
+        assertThat(ok.asText()).contains(";03;03.04;03.04;03.04;03.04;;EVO-147;;;480");
+
+        assertThat(failure(worked("2026-03-10", LineSubmission.of("03.04", 480))).hasCode("JIRA_REQUIRED")).isTrue();
+    }
+
+    @Test
+    void dondeLaActividadNoExigeIssueActivityReportLaAceptaYNoLaValida() {
+        // Comprobado con el feedback real: 206 líneas así fueron aceptadas
+        ActivitiesFile ok = builder.build(List.of(
+                worked("2026-03-10", LineSubmission.jira("01.01.01", "SDATOOL-1", "ETR-01", 60))), SUBMISSION);
+        assertThat(ok.asText()).contains(";SDATOOL-1;ETR-01;;;60");
     }
 
     @Test

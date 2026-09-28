@@ -2,7 +2,7 @@ spring:
   application:
     name: ar-connector
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/ar_connector}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ar_connector?reWriteBatchedInserts=true}
     username: ${DB_USER:ar_connector}
     password: ${DB_PASSWORD:changeme}
   jpa:
@@ -26,7 +26,7 @@ spring:
 server:
   port: 8080
 
-# URL pública del panel, para los enlaces de los avisos
+# URL pÃºblica del panel, para los enlaces de los avisos
 panel:
   url: ${PANEL_URL:http://localhost:4200}
 
@@ -39,7 +39,7 @@ notifications:
 # Datos que el proveedor comunica a los administradores de Activity Report
 # (entidad "Vendors" del documento). Si no cuadran, BBVA rechaza la llamada.
 activity-report:
-  base-url: ${AR_BASE_URL:https://sandbox.example.com/timereport/api/vendors}
+  base-url: ${AR_BASE_URL:https://dev-bbva-gateway.appspot.com/timereport/api/vendors}
   requestor-email: ${AR_REQUESTOR_EMAIL:}
   gps-codes: ${AR_GPS_CODES:}
   geographies: ${AR_GEOGRAPHIES:}
@@ -48,7 +48,7 @@ activity-report:
   client: ${AR_CLIENT:http}
   local-dir: ${AR_LOCAL_DIR:../samples/catalogues}
 
-# Primer usuario MANAGER del panel; solo se crea si la tabla app_user está vacía.
+# Primer usuario MANAGER del panel; solo se crea si la tabla app_user estÃ¡ vacÃ­a.
 auth:
   bootstrap:
     email: ${ADMIN_EMAIL:admin@arktic.local}
@@ -57,13 +57,13 @@ auth:
 jobs:
   timezone: Europe/Madrid
   catalog-sync:
-    cron: "0 0 4 * * *"   # los catálogos están disponibles a partir de las 3:00
+    cron: "0 0 4 * * *"   # los catÃ¡logos estÃ¡n disponibles a partir de las 3:00
   upload:
-    cron: "0 0 13,18,21 * * *"   # todos los días: los cortes (19 y 4) pueden caer en fin de semana
+    cron: "0 0 13,18,21 * * *"   # todos los dÃ­as: los cortes (19 y 4) pueden caer en fin de semana
   feedback-sync:
-    cron: "0 30 4,10 * * *"      # el feedback está disponible a partir de las 3:00; segundo intento a media mañana
+    cron: "0 30 4,10 * * *"      # el feedback estÃ¡ disponible a partir de las 3:00; segundo intento a media maÃ±ana
   notifications:
-    cron: "0 0 9 * * *"          # avisos de huecos y rechazos, tras catálogos y feedback
+    cron: "0 0 9 * * *"          # avisos de huecos y rechazos, tras catÃ¡logos y feedback
 
 logging:
   level:

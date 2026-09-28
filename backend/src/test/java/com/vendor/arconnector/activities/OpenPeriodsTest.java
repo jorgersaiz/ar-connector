@@ -12,29 +12,39 @@ class OpenPeriodsTest {
     private final ModifiablePeriodPolicy policy = new ModifiablePeriodPolicy();
 
     @Test
-    void elDia17HayUnaSolaQuincenaAbiertaConSuCorte() {
-        List<OpenPeriods.Period> periods = OpenPeriods.on(LocalDate.parse("2026-09-17"), policy);
+    void elDia17HayDosQuincenasAbiertasCadaUnaConSuCorte() {
+        List<OpenPeriods.Period> periods = OpenPeriods.on(LocalDate.parse("2026-03-17"), policy);
 
         assertThat(periods).hasSize(2);
         OpenPeriods.Period first = periods.get(0);
-        assertThat(first.label()).isEqualTo("1ª quincena de septiembre 2026");
-        assertThat(first.from()).isEqualTo(LocalDate.parse("2026-09-01"));
-        assertThat(first.to()).isEqualTo(LocalDate.parse("2026-09-15"));
-        assertThat(first.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-09-19"));
+        assertThat(first.label()).isEqualTo("1ª quincena de marzo 2026");
+        assertThat(first.from()).isEqualTo(LocalDate.parse("2026-03-01"));
+        assertThat(first.to()).isEqualTo(LocalDate.parse("2026-03-15"));
+        assertThat(first.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-03-19"));
         assertThat(first.daysLeft()).isEqualTo(2);
 
         OpenPeriods.Period second = periods.get(1);
-        assertThat(second.label()).isEqualTo("2ª quincena de septiembre 2026");
-        assertThat(second.to()).isEqualTo(LocalDate.parse("2026-09-30"));
-        assertThat(second.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-10-04"));
+        assertThat(second.label()).isEqualTo("2ª quincena de marzo 2026");
+        assertThat(second.to()).isEqualTo(LocalDate.parse("2026-03-31"));
+        // el 4 de abril de 2026 es sábado: el último día de envío es el viernes 3
+        assertThat(second.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-04-03"));
     }
 
     @Test
     void elDia3IncluyeLaSegundaQuincenaDelMesAnterior() {
-        List<OpenPeriods.Period> periods = OpenPeriods.on(LocalDate.parse("2026-10-03"), policy);
+        List<OpenPeriods.Period> periods = OpenPeriods.on(LocalDate.parse("2026-03-03"), policy);
 
         assertThat(periods).extracting(OpenPeriods.Period::label)
-                .containsExactly("2ª quincena de septiembre 2026", "1ª quincena de octubre 2026");
+                .containsExactly("2ª quincena de febrero 2026", "1ª quincena de marzo 2026");
         assertThat(periods.get(0).daysLeft()).isEqualTo(1);
+    }
+
+    @Test
+    void conElCorteEnSabadoLaQuincenaSeCierraElViernes() {
+        // 19 de septiembre de 2026 es sábado: el viernes 18 todavía está abierta, el sábado ya no
+        assertThat(OpenPeriods.on(LocalDate.parse("2026-09-18"), policy)).extracting(OpenPeriods.Period::label)
+                .containsExactly("1ª quincena de septiembre 2026", "2ª quincena de septiembre 2026");
+        assertThat(OpenPeriods.on(LocalDate.parse("2026-09-19"), policy)).extracting(OpenPeriods.Period::label)
+                .containsExactly("2ª quincena de septiembre 2026");
     }
 }

@@ -82,6 +82,13 @@
             <testResource>
                 <directory>../samples</directory>
                 <targetPath>samples</targetPath>
+                <excludes>
+                    <!-- ficheros reales de BBVA (40 MB): los tests los leen de su carpeta, no del classpath -->
+                    <exclude>real/**</exclude>
+                    <exclude>real-catalogues/**</exclude>
+                    <exclude>catalogues/outbox/**</exclude>
+                    <exclude>catalogues/feedback/**</exclude>
+                </excludes>
             </testResource>
         </testResources>
         <plugins>

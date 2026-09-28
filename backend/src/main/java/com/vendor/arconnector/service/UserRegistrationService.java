@@ -1,6 +1,8 @@
 package com.vendor.arconnector.service;
 
+import com.vendor.arconnector.activities.PersonIdHasher;
 import com.vendor.arconnector.catalog.SemicolonCsv;
+import com.vendor.arconnector.feedback.FeedbackLocator;
 import com.vendor.arconnector.client.ActivityReportClient;
 import com.vendor.arconnector.client.ActivityReportClientException;
 import com.vendor.arconnector.domain.*;
@@ -21,6 +23,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -113,6 +117,26 @@ public class UserRegistrationService {
         personRepository.saveAll(persons);
     }
 
+    private Optional<byte[]> downloadFeedback(LocalDate date) {
+        try {
+            return Optional.of(client.downloadUserRegistrationFeedback(date));
+        } catch (ActivityReportClientException e) {
+            if (e.isFileNotFound()) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    /** Hashes (en mayúsculas) de las personas que aparecen en un fichero de feedback de registro. */
+    private static Set<String> hashesOf(byte[] content) {
+        Set<String> hashes = new HashSet<>();
+        for (UserRegistrationFeedbackParser.Row row : UserRegistrationFeedbackParser.parse(SemicolonCsv.parse(content))) {
+            hashes.add(row.uid().isEmpty() ? PersonIdHasher.hash(row.uids()).toUpperCase(Locale.ROOT) : row.uid());
+        }
+        return hashes;
+    }
+
     public List<LocalDate> pendingFeedbackDates() {
         LocalDate today = LocalDate.now(clock);
         LocalDate from = today.minusDays(FeedbackService.LOOKBACK_DAYS);
@@ -132,23 +156,31 @@ public class UserRegistrationService {
 
     @Transactional
     public FeedbackResult syncFeedback(LocalDate submissionDate) {
-        byte[] content;
+        List<Person> sent = personRepository.findByRegistrationStatusAndRegistrationSentDate(RegistrationStatus.SENT, submissionDate);
+        Set<String> sentHashes = new HashSet<>();
+        sent.forEach(p -> sentHashes.add(p.personId().toUpperCase(Locale.ROOT)));
+
+        // Igual que con las imputaciones: no está claro si el feedback se pide con la fecha de
+        // envío o con la de procesamiento, así que se prueban y se comprueba por contenido.
+        Optional<FeedbackLocator.Found> found;
         try {
-            content = client.downloadUserRegistrationFeedback(submissionDate);
+            found = FeedbackLocator.locate(submissionDate, LocalDate.now(clock), this::downloadFeedback,
+                    UserRegistrationService::hashesOf, sentHashes);
         } catch (ActivityReportClientException e) {
-            if (e.getHttpStatus() != null && e.getHttpStatus() == 404) {
-                return new FeedbackResult(submissionDate, FeedbackResult.Status.NOT_AVAILABLE_YET, 0, 0, 0, 0, null);
-            }
             return new FeedbackResult(submissionDate, FeedbackResult.Status.FAILED, 0, 0, 0, 0, e.getMessage());
         }
+        if (found.isEmpty()) {
+            return new FeedbackResult(submissionDate, FeedbackResult.Status.NOT_AVAILABLE_YET, 0, 0, 0, 0, null);
+        }
+        byte[] content = found.get().content();
 
         List<UserRegistrationFeedbackParser.Row> rows = UserRegistrationFeedbackParser.parse(SemicolonCsv.parse(content));
-        List<Person> sent = personRepository.findByRegistrationStatusAndRegistrationSentDate(RegistrationStatus.SENT, submissionDate);
         UserRegistrationFeedbackApplier.Result applied = UserRegistrationFeedbackApplier.apply(rows, sent, submissionDate);
         personRepository.saveAll(sent);
 
         UserRegistrationFeedback file = feedbackRepository.findBySubmissionDate(submissionDate)
                 .orElseGet(() -> new UserRegistrationFeedback(submissionDate));
+        file.setFeedbackDate(found.get().requestedDate());
         file.setDownloadedAt(Instant.now(clock));
         file.setContent(content);
         file.setRowCount(rows.size());

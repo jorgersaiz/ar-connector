@@ -8,7 +8,14 @@ import lombok.Setter;
 import java.time.Instant;
 import java.time.LocalDate;
 
-/** Catálogo "ISSUES DE PROYECTOS SDA": features, tasks L1 y conceptualization time de Jira. */
+/**
+ * Catálogo "ISSUES DE PROYECTOS SDA": features, tasks L1 y conceptualization
+ * time de Jira.
+ *
+ * Una misma issue puede aparecer en varias filas, una por cada proyecto SDA al
+ * que está asociada, y puede no tener ninguno (sda_project_id vacío). Por eso
+ * la clave es un id propio y no el de la issue.
+ */
 @Entity
 @Table(name = "jira_issue")
 @Getter
@@ -17,7 +24,10 @@ import java.time.LocalDate;
 public class JiraIssue {
 
     @Id
-    @Column(name = "jira_issue_id", length = 64)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "jira_issue_id", nullable = false, length = 64)
     private String jiraIssueId;
 
     @Column(name = "description", length = 500)
@@ -26,16 +36,18 @@ public class JiraIssue {
     @Column(name = "sda_project_id", length = 64)
     private String sdaProjectId;
 
+    /** New, Analysing, In Progress, Test, Ready To Verify, Ready to Deploy, Deployed, Discarded, Blocked... */
     @Column(name = "status", length = 64)
     private String status;
 
-    @Column(name = "geography", length = 16)
+    /** Área funcional ("Spain", "Global - Retail Client Solutions"...), no un código de país. */
+    @Column(name = "geography", length = 64)
     private String geography;
 
     @Column(name = "disabled_date")
     private LocalDate disabledDate;
 
-    /** feature | task | conceptualization time */
+    /** Feature | Task | Conceptualization Time */
     @Column(name = "type", length = 64)
     private String type;
 

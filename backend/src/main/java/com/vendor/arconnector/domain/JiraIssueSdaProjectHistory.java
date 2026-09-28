@@ -11,7 +11,11 @@ import java.time.LocalDate;
 /**
  * Catálogo "HISTÓRICO DE FEATURES Y PROYECTOS SDA": cambios de asociación
  * feature -> SDA en la quincena en curso. Una feature con varios SDA aparece
- * en varias filas con la misma fecha.
+ * en varias filas con la misma fecha; con el SDA vacío, la feature se quedó
+ * sin proyecto ese día.
+ *
+ * Para saber qué SDA tenía una feature en una fecha hay que buscar su cambio
+ * más cercano y anterior (o igual) a esa fecha.
  */
 @Entity
 @Table(name = "jira_issue_sda_project_history")
@@ -27,7 +31,7 @@ public class JiraIssueSdaProjectHistory {
     @Column(name = "jira_issue_key", nullable = false, length = 64)
     private String jiraIssueKey;
 
-    @Column(name = "sda_project_id", nullable = false, length = 64)
+    @Column(name = "sda_project_id", length = 64)
     private String sdaProjectId;
 
     @Column(name = "change_date", nullable = false)

@@ -86,7 +86,7 @@ class PeriodSnapshotBuilderTest {
         Gap dia4 = snapshot.gaps().stream().filter(g -> g.date().equals(d("2026-03-04"))).findFirst().orElseThrow();
         assertThat(dia4.lastSubmissionDate()).isEqualTo(d("2026-03-19"));
         Gap dia17 = snapshot.gaps().stream().filter(g -> g.date().equals(d("2026-03-17"))).findFirst().orElseThrow();
-        assertThat(dia17.lastSubmissionDate()).isEqualTo(d("2026-04-04"));
+        assertThat(dia17.lastSubmissionDate()).isEqualTo(d("2026-04-03"));   // el 4 de abril es sábado
     }
 
     @Test

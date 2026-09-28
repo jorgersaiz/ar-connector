@@ -23,6 +23,10 @@ public class UserRegistrationFeedback {
     @Column(name = "submission_date", nullable = false, unique = true)
     private LocalDate submissionDate;
 
+    /** Fecha con la que Activity Report devolvió el fichero (la de envío o la de procesamiento). */
+    @Column(name = "feedback_date")
+    private LocalDate feedbackDate;
+
     @Column(name = "downloaded_at", nullable = false)
     private Instant downloadedAt;
 

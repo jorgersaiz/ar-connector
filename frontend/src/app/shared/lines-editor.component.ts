@@ -2,12 +2,12 @@ import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { AbstractControl, FormArray, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Subject, Subscription, catchError, debounceTime, of, switchMap } from 'rxjs';
 import { CatalogService } from '../core/catalog.service';
 import { JiraIssue, Line, NonSdaProject, SdaProject, TaskType } from '../core/models';
 import { minutesToHours } from '../core/dates';
@@ -20,12 +20,18 @@ interface LineForm {
   minutes: FormControl<number | null>;
 }
 
-/** Estado de una fila del editor (grupo de formulario + datos dependientes del tipo de tarea). */
+/** Estado de una fila del editor (grupo de formulario + resultados de búsqueda de sus selectores). */
 export class LineRow {
   readonly group: FormGroup<LineForm>;
   filtered: TaskType[] = [];
-  jiraIssues: JiraIssue[] = [];
-  loadingJira = false;
+  sdaOptions: SdaProject[] = [];
+  jiraOptions: JiraIssue[] = [];
+  nonSdaOptions: NonSdaProject[] = [];
+  searchingSda = false;
+  searchingJira = false;
+  readonly sdaSearch = new Subject<string>();
+  readonly jiraSearch = new Subject<string>();
+  subscriptions: Subscription[] = [];
 
   constructor(line?: Line) {
     this.group = new FormGroup<LineForm>(
@@ -50,26 +56,34 @@ export class LineRow {
   }
 }
 
+function filled(v: string | null): boolean {
+  return !!v && v.trim().length > 0;
+}
+
 function lineValidator(control: AbstractControl): ValidationErrors | null {
   const g = control as FormGroup<LineForm>;
   const tt = g.controls.taskType.value;
   if (!tt || typeof tt !== 'object') return { taskTypeRequired: true };
   const errors: ValidationErrors = {};
-  if (tt.requiresSdaProject && !g.controls.sdaProjectId.value) errors['sdaRequired'] = true;
-  if (tt.requiresJiraIssue && !g.controls.jiraIssueId.value) errors['jiraRequired'] = true;
-  if (tt.requiresNonSdaProject && !g.controls.nonSdaProject.value) errors['nonSdaRequired'] = true;
+  if (tt.requiresSdaProject && !filled(g.controls.sdaProjectId.value)) errors['sdaRequired'] = true;
+  if (tt.jiraIssueRequired && !filled(g.controls.jiraIssueId.value)) errors['jiraRequired'] = true;
+  if (tt.requiresNonSdaProject && !filled(g.controls.nonSdaProject.value)) errors['nonSdaRequired'] = true;
   return Object.keys(errors).length ? errors : null;
 }
 
 /**
  * Editor de líneas de imputación (compartido por el diálogo de día y el de plantilla).
  * El padre lee `value()` y `valid` al guardar.
+ *
+ * Los selectores de proyecto SDA e issue de Jira buscan en el servidor mientras
+ * se escribe, porque los catálogos reales tienen miles de entradas. El valor
+ * que se guarda es el código; el servidor valida que exista y sea imputable.
  */
 @Component({
   selector: 'app-lines-editor',
   standalone: true,
   imports: [
-    ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatAutocompleteModule,
+    ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatAutocompleteModule,
     MatButtonModule, MatIconModule, MatTooltipModule, MatProgressSpinnerModule,
   ],
   template: `
@@ -103,42 +117,56 @@ function lineValidator(control: AbstractControl): ValidationErrors | null {
         <div class="deps">
           @if (row.taskType?.requiresSdaProject) {
             <mat-form-field subscriptSizing="dynamic">
-              <mat-label>Proyecto SDA</mat-label>
-              <mat-select formControlName="sdaProjectId" (selectionChange)="onSdaChanged(row)">
-                @for (p of sdaProjects(); track p.sdaProjectId) {
-                  <mat-option [value]="p.sdaProjectId">{{ p.sdaProjectId }} · {{ p.description }}</mat-option>
+              <mat-label>Proyecto SDA{{ row.taskType?.requiresEvolutionarySda ? ' (de evolutivo)' : '' }}</mat-label>
+              <input matInput formControlName="sdaProjectId" [matAutocomplete]="sdaAuto" placeholder="Escribe el código o parte del nombre"
+                     (input)="searchSda(row)" (focus)="searchSda(row)" />
+              <mat-autocomplete #sdaAuto (optionSelected)="onSdaChanged(row)">
+                @if (row.searchingSda) { <mat-option disabled>Buscando…</mat-option> }
+                @for (p of row.sdaOptions; track p.sdaProjectId) {
+                  <mat-option [value]="p.sdaProjectId">
+                    <span>{{ p.sdaProjectId }}</span>
+                    <span class="muted small"> · {{ p.description }} · {{ p.status }}</span>
+                  </mat-option>
                 }
-              </mat-select>
+                @if (!row.searchingSda && row.sdaOptions.length === 0) { <mat-option disabled>Sin resultados</mat-option> }
+              </mat-autocomplete>
+              @if (row.sdaOptions.length >= 50) { <mat-hint>Se muestran 50; escribe más para acotar</mat-hint> }
             </mat-form-field>
           }
-          @if (row.taskType?.requiresJiraIssue) {
+          @if (row.taskType?.jiraIssueExpected) {
             <mat-form-field subscriptSizing="dynamic">
-              <mat-label>Issue Jira</mat-label>
-              <mat-select formControlName="jiraIssueId">
-                @if (row.loadingJira) {
-                  <mat-option disabled>Cargando…</mat-option>
-                } @else if (!row.group.controls.sdaProjectId.value) {
-                  <mat-option disabled>Selecciona antes el proyecto SDA</mat-option>
-                } @else if (row.jiraIssues.length === 0) {
-                  <mat-option disabled>Sin issues para el proyecto seleccionado</mat-option>
+              <mat-label>Issue Jira{{ row.taskType?.jiraIssueRequired ? '' : ' (opcional)' }}</mat-label>
+              <input matInput formControlName="jiraIssueId" [matAutocomplete]="jiraAuto" placeholder="Escribe la clave o parte del título"
+                     (input)="searchJira(row)" (focus)="searchJira(row)" />
+              <mat-autocomplete #jiraAuto>
+                @if (row.searchingJira) { <mat-option disabled>Buscando…</mat-option> }
+                @for (j of row.jiraOptions; track j.jiraIssueId + '|' + j.sdaProjectId) {
+                  <mat-option [value]="j.jiraIssueId">
+                    <span>{{ j.jiraIssueId }}</span>
+                    <span class="muted small"> · {{ j.description }} · {{ j.status }}</span>
+                  </mat-option>
                 }
-                @for (j of row.jiraIssues; track j.jiraIssueId) {
-                  <mat-option [value]="j.jiraIssueId">{{ j.jiraIssueId }} · {{ j.description }}</mat-option>
+                @if (!row.searchingJira && row.jiraOptions.length === 0) {
+                  <mat-option disabled>{{ jiraEmptyText(row) }}</mat-option>
                 }
-              </mat-select>
+              </mat-autocomplete>
+              <mat-hint>{{ jiraHint(row) }}</mat-hint>
             </mat-form-field>
           }
           @if (row.taskType?.requiresNonSdaProject) {
             <mat-form-field subscriptSizing="dynamic">
               <mat-label>Proyecto no SDA</mat-label>
-              <mat-select formControlName="nonSdaProject">
-                @for (p of nonSdaProjects(); track p.description) {
+              <input matInput formControlName="nonSdaProject" [matAutocomplete]="nonSdaAuto" placeholder="Escribe parte del nombre"
+                     (input)="filterNonSda(row)" (focus)="filterNonSda(row)" />
+              <mat-autocomplete #nonSdaAuto>
+                @for (p of row.nonSdaOptions; track p.description) {
                   <mat-option [value]="p.description">{{ p.description }}</mat-option>
                 }
-              </mat-select>
+                @if (row.nonSdaOptions.length === 0) { <mat-option disabled>Sin resultados</mat-option> }
+              </mat-autocomplete>
             </mat-form-field>
           }
-          @if (row.taskType && !row.taskType.requiresSdaProject && !row.taskType.requiresJiraIssue && !row.taskType.requiresNonSdaProject) {
+          @if (row.taskType && !row.taskType.requiresSdaProject && !row.taskType.jiraIssueExpected && !row.taskType.requiresNonSdaProject) {
             <span class="muted small no-deps">Sin proyecto asociado</span>
           }
         </div>
@@ -164,8 +192,14 @@ function lineValidator(control: AbstractControl): ValidationErrors | null {
   `,
   styles: [`
     :host { display: block; }
-    .line-row { margin-bottom: 10px; }
-    .deps { display: flex; flex-direction: column; gap: 8px; }
+    /* tarea y proyecto a lo ancho (los nombres reales son largos); minutos y papelera a la derecha */
+    .line-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) 110px 40px; gap: 14px 12px; align-items: start;
+      margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .line-row mat-form-field { width: 100%; }
+    .deps { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; gap: 8px; }
+    .deps:empty { display: none; }
     .no-deps { padding-top: 14px; display: inline-block; }
     .footer { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
     .total { margin-left: auto; }
@@ -181,7 +215,6 @@ export class LinesEditorComponent implements OnInit {
   rows: LineRow[] = [];
   readonly form = new FormArray<FormGroup<LineForm>>([]);
   readonly taskTypes = signal<TaskType[]>([]);
-  readonly sdaProjects = signal<SdaProject[]>([]);
   readonly nonSdaProjects = signal<NonSdaProject[]>([]);
   readonly catalogReady = signal(false);
   readonly total = signal(0);
@@ -191,7 +224,6 @@ export class LinesEditorComponent implements OnInit {
     this.form.valueChanges.subscribe(() => this.recomputeTotal());
     this.recomputeTotal();
 
-    this.catalogs.sdaProjects().subscribe({ next: (l) => this.sdaProjects.set(l), error: () => this.sdaProjects.set([]) });
     this.catalogs.nonSdaProjects().subscribe({ next: (l) => this.nonSdaProjects.set(l), error: () => this.nonSdaProjects.set([]) });
     this.catalogs.selectableTaskTypes().subscribe({
       next: (list) => {
@@ -203,7 +235,7 @@ export class LinesEditorComponent implements OnInit {
           if (typeof v === 'string') {
             const tt = list.find((t) => t.code === v);
             row.group.controls.taskType.setValue(tt ?? v);
-            if (tt) this.afterTaskType(row, tt, true);
+            if (tt) row.group.updateValueAndValidity();
           }
           row.filtered = list;
         }
@@ -225,11 +257,12 @@ export class LinesEditorComponent implements OnInit {
     return this.rows.map((row) => {
       const tt = row.taskType;
       const c = row.group.controls;
+      const clean = (v: string | null) => (v && v.trim() ? v.trim() : null);
       return {
         taskTypeCode: tt?.code ?? String(c.taskType.value ?? ''),
-        sdaProjectId: tt?.requiresSdaProject ? c.sdaProjectId.value : null,
-        jiraIssueId: tt?.requiresJiraIssue ? c.jiraIssueId.value : null,
-        nonSdaProject: tt?.requiresNonSdaProject ? c.nonSdaProject.value : null,
+        sdaProjectId: tt?.requiresSdaProject ? clean(c.sdaProjectId.value) : null,
+        jiraIssueId: tt?.jiraIssueExpected ? clean(c.jiraIssueId.value) : null,
+        nonSdaProject: tt?.requiresNonSdaProject ? clean(c.nonSdaProject.value) : null,
         minutes: Number(c.minutes.value) || 0,
       };
     });
@@ -242,6 +275,7 @@ export class LinesEditorComponent implements OnInit {
   }
 
   remove(i: number): void {
+    this.rows[i].subscriptions.forEach((s) => s.unsubscribe());
     this.rows.splice(i, 1);
     this.form.removeAt(i);
   }
@@ -261,39 +295,84 @@ export class LinesEditorComponent implements OnInit {
       : all;
   }
 
+  searchSda(row: LineRow): void {
+    row.searchingSda = true;
+    row.sdaSearch.next(row.group.controls.sdaProjectId.value ?? '');
+  }
+
+  searchJira(row: LineRow): void {
+    const tt = row.taskType;
+    if (tt?.requiresSdaProject && !filled(row.group.controls.sdaProjectId.value)) {
+      row.jiraOptions = [];
+      row.searchingJira = false;
+      return;
+    }
+    row.searchingJira = true;
+    row.jiraSearch.next(row.group.controls.jiraIssueId.value ?? '');
+  }
+
+  filterNonSda(row: LineRow): void {
+    const q = (row.group.controls.nonSdaProject.value ?? '').toLowerCase().trim();
+    const all = this.nonSdaProjects();
+    row.nonSdaOptions = (q ? all.filter((p) => p.description.toLowerCase().includes(q)) : all).slice(0, 50);
+  }
+
+  jiraEmptyText(row: LineRow): string {
+    if (row.taskType?.requiresSdaProject && !filled(row.group.controls.sdaProjectId.value)) return 'Indica antes el proyecto SDA';
+    return 'Sin resultados';
+  }
+
+  jiraHint(row: LineRow): string {
+    const tt = row.taskType;
+    if (!tt) return '';
+    if (tt.requiresConceptualizationTime) return 'Tiene que ser una issue de tipo Conceptualization Time';
+    if (!tt.requiresSdaProject) return 'Features sin proyecto SDA';
+    return 'Issues del proyecto SDA indicado';
+  }
+
   onTaskTypeSelected(row: LineRow, ev: MatAutocompleteSelectedEvent): void {
     const tt = ev.option.value as TaskType;
-    this.afterTaskType(row, tt, false);
+    const c = row.group.controls;
+    if (!tt.requiresSdaProject) c.sdaProjectId.setValue(null);
+    if (!tt.jiraIssueExpected) c.jiraIssueId.setValue(null);
+    if (!tt.requiresNonSdaProject) c.nonSdaProject.setValue(null);
+    row.sdaOptions = [];
+    row.jiraOptions = [];
+    row.group.updateValueAndValidity();
   }
 
   onSdaChanged(row: LineRow): void {
     row.group.controls.jiraIssueId.setValue(null);
-    this.loadJira(row);
-  }
-
-  private afterTaskType(row: LineRow, tt: TaskType, keepValues: boolean): void {
-    const c = row.group.controls;
-    if (!keepValues) {
-      if (!tt.requiresSdaProject) c.sdaProjectId.setValue(null);
-      if (!tt.requiresJiraIssue) c.jiraIssueId.setValue(null);
-      if (!tt.requiresNonSdaProject) c.nonSdaProject.setValue(null);
-    }
-    if (tt.requiresJiraIssue) this.loadJira(row);
-    row.group.updateValueAndValidity();
-  }
-
-  private loadJira(row: LineRow): void {
-    const sda = row.group.controls.sdaProjectId.value;
-    row.jiraIssues = [];
-    if (!sda) return;
-    row.loadingJira = true;
-    this.catalogs.jiraIssuesOf(sda).subscribe({
-      next: (list) => { row.jiraIssues = list; row.loadingJira = false; },
-      error: () => { row.loadingJira = false; },
-    });
+    row.jiraOptions = [];
   }
 
   private push(row: LineRow): void {
+    row.subscriptions.push(
+      row.sdaSearch
+        .pipe(
+          debounceTime(250),
+          // un fallo puntual de la búsqueda no debe dejar el selector muerto
+          switchMap((q) => this.catalogs.searchSdaProjects(q, row.taskType?.requiresEvolutionarySda ?? null)
+            .pipe(catchError(() => of([] as SdaProject[])))),
+        )
+        .subscribe({
+          next: (list) => { row.sdaOptions = list; row.searchingSda = false; },
+          error: () => { row.sdaOptions = []; row.searchingSda = false; },
+        }),
+      row.jiraSearch
+        .pipe(
+          debounceTime(250),
+          switchMap((q) => {
+            const requiresSda = row.taskType?.requiresSdaProject ?? false;
+            const sda = requiresSda ? (row.group.controls.sdaProjectId.value ?? '').trim() : null;
+            return this.catalogs.searchJiraIssues(q, sda, !requiresSda).pipe(catchError(() => of([] as JiraIssue[])));
+          }),
+        )
+        .subscribe({
+          next: (list) => { row.jiraOptions = list; row.searchingJira = false; },
+          error: () => { row.jiraOptions = []; row.searchingJira = false; },
+        }),
+    );
     this.rows.push(row);
     this.form.push(row.group);
   }

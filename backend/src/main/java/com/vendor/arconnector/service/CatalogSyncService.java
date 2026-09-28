@@ -30,7 +30,7 @@ public class CatalogSyncService {
     private static final Logger log = LoggerFactory.getLogger(CatalogSyncService.class);
 
     /** Formato que produce nuestro PersonIdHasher; sirve para contrastarlo con los hashes que genera BBVA. */
-    private static final Pattern OUR_PERSON_ID_FORMAT = Pattern.compile("[0-9a-f]{64}");
+    private static final Pattern OUR_PERSON_ID_FORMAT = Pattern.compile("[0-9a-fA-F]{64}");
 
     private final ActivityReportClient client;
     private final CatalogStore store;

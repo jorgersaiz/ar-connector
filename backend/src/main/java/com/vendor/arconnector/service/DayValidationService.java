@@ -12,9 +12,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Valida el contenido de días y plantillas contra el árbol de actividades
- * sincronizado, con las mismas reglas que el generador del fichero, para
- * rechazar en el momento de introducirlos lo que BBVA rechazaría después.
+ * Valida el contenido de días y plantillas contra el árbol de actividades y
+ * los catálogos sincronizados, con las mismas reglas que el generador del
+ * fichero, para rechazar en el momento de introducirlos lo que BBVA
+ * rechazaría después.
  */
 @Service
 public class DayValidationService {
@@ -27,17 +28,13 @@ public class DayValidationService {
         this.catalogRulesService = catalogRulesService;
     }
 
-    public ActivitiesFileBuilder builder() {
+    /** Lanza {@link DayValidationException} si algún día tiene problemas de contenido. */
+    public void validate(List<DaySubmission> days) {
         TaskTree tree = TaskTree.fromCatalog(taskTypeRepository.findAll());
         if (tree.isEmpty()) {
             throw new IllegalStateException("El árbol de actividades está vacío: sincroniza el catálogo task_types antes de introducir imputaciones");
         }
-        return new ActivitiesFileBuilder(tree, new ModifiablePeriodPolicy(), catalogRulesService.load());
-    }
-
-    /** Lanza {@link DayValidationException} si algún día tiene problemas de contenido. */
-    public void validate(List<DaySubmission> days) {
-        ActivitiesFileBuilder builder = builder();
+        ActivitiesFileBuilder builder = new ActivitiesFileBuilder(tree, new ModifiablePeriodPolicy(), catalogRulesService.loadFor(days));
         List<ValidationProblem> problems = new ArrayList<>();
         for (DaySubmission day : days) {
             problems.addAll(builder.validateContent(day));

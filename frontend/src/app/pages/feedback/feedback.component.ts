@@ -10,6 +10,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ApiService } from '../../core/api.service';
 import { NotifyService } from '../../core/notify.service';
+import { rejectCodeText } from '../../core/reject-codes';
 import { FeedbackFile, FeedbackRow, FeedbackSyncResult, FeedbackSyncStatus } from '../../core/models';
 
 const SYNC_LABEL: Record<FeedbackSyncStatus, string> = {
@@ -99,7 +100,7 @@ const SYNC_LABEL: Record<FeedbackSyncStatus, string> = {
             <ng-container matColumnDef="jiraIssueId"><th mat-header-cell *matHeaderCellDef>Jira</th><td mat-cell *matCellDef="let r" class="mono">{{ r.jiraIssueId ?? '' }}</td></ng-container>
             <ng-container matColumnDef="nonSdaProject"><th mat-header-cell *matHeaderCellDef>No SDA</th><td mat-cell *matCellDef="let r">{{ r.nonSdaProject ?? '' }}</td></ng-container>
             <ng-container matColumnDef="timeMinutes"><th mat-header-cell *matHeaderCellDef>Min</th><td mat-cell *matCellDef="let r">{{ r.timeMinutes ?? '' }}</td></ng-container>
-            <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>Motivo</th><td mat-cell *matCellDef="let r" class="warn-text">{{ r.reason ?? '' }}</td></ng-container>
+            <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>Motivo</th><td mat-cell *matCellDef="let r" class="warn-text" [matTooltip]="reasonText(r.reason)">{{ r.reason ?? '' }}</td></ng-container>
             <ng-container matColumnDef="matched"><th mat-header-cell *matHeaderCellDef>Casada</th><td mat-cell *matCellDef="let r"><mat-icon [class]="r.matched ? 'ok-text' : 'muted'" [matTooltip]="r.matched ? 'Asociada a un día del panel' : 'No se encontró el día en el panel'">{{ r.matched ? 'link' : 'link_off' }}</mat-icon></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="rowColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: rowColumns"></tr>
@@ -123,6 +124,10 @@ export class FeedbackComponent implements OnInit {
   readonly syncColumns = ['submissionDate', 'status', 'rowCount', 'rejectedCount', 'matchedRows', 'unmatchedRows', 'error'];
   readonly fileColumns = ['submissionDate', 'downloadedAt', 'rowCount', 'rejectedCount', 'matchedCount'];
   readonly rowColumns = ['activityDate', 'personId', 'taskTypeCode', 'sdaProjectId', 'jiraIssueId', 'nonSdaProject', 'timeMinutes', 'reason', 'matched'];
+
+  reasonText(code: string | null): string {
+    return rejectCodeText(code);
+  }
 
   readonly pending = signal<string[]>([]);
   readonly files = signal<FeedbackFile[]>([]);

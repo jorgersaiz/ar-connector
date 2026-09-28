@@ -1,19 +1,34 @@
 package com.vendor.arconnector.catalog;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Lector de los CSV que cede Activity Report: separador ';', UTF-8 (con o sin
- * BOM), finales de línea LF o CRLF, campos opcionalmente entrecomillados con
- * comillas dobles (y "" como escape), primera fila de cabecera.
+ * BOM), finales de línea LF o CRLF, primera fila de cabecera.
  *
  * Las columnas se localizan por NOMBRE de cabecera, no por posición, para que
  * un cambio de orden o una columna nueva en BBVA no rompa la carga.
+ *
+ * Comillas: solo abren un campo entrecomillado si son el PRIMER carácter del
+ * campo (CSV estándar, con "" como escape). Unas comillas a mitad de un texto
+ * libre ("Pantalla 24"") son un carácter más. Los ficheros reales de BBVA no
+ * traen comillas ni ';' dentro de los campos.
+ *
+ * Tamaño: el catálogo de issues de Jira real tiene ~270.000 filas y 29 MB, así
+ * que cada fila guarda solo su array de valores y comparte el índice de columnas.
+ *
+ * Si el contenido llega comprimido (zip o gzip) se descomprime de forma
+ * transparente.
  */
 public final class SemicolonCsv {
 
@@ -23,51 +38,94 @@ public final class SemicolonCsv {
     }
 
     public static CsvTable parse(byte[] content) {
-        return parse(new String(content, StandardCharsets.UTF_8));
+        return parse(new String(decompressIfNeeded(content), StandardCharsets.UTF_8));
     }
 
     public static CsvTable parse(String text) {
-        List<List<String>> records = splitRecords(text);
-        if (records.isEmpty()) {
+        List<Rec> records = splitRecords(text);
+        if (records.isEmpty() || allBlank(records.get(0).fields)) {
             throw new CatalogParseException(List.of("fichero vacío: no hay fila de cabecera"));
         }
 
-        List<String> headers = records.get(0).stream().map(String::trim).toList();
-        if (headers.stream().allMatch(String::isBlank)) {
-            throw new CatalogParseException(List.of("fichero vacío: no hay fila de cabecera"));
+        String[] rawHeaders = records.get(0).fields;
+        List<String> headers = new ArrayList<>(rawHeaders.length);
+        Map<String, Integer> index = new HashMap<>();
+        for (int c = 0; c < rawHeaders.length; c++) {
+            String h = rawHeaders[c].trim();
+            headers.add(h);
+            index.putIfAbsent(h.toLowerCase(Locale.ROOT), c);
         }
-        List<String> keys = headers.stream().map(h -> h.toLowerCase(Locale.ROOT)).toList();
 
-        List<CsvRow> rows = new ArrayList<>();
+        List<CsvRow> rows = new ArrayList<>(records.size());
         List<String> errors = new ArrayList<>();
         for (int i = 1; i < records.size(); i++) {
-            List<String> fields = records.get(i);
-            int lineNumber = i + 1;
-            if (fields.stream().allMatch(String::isBlank)) {
+            Rec rec = records.get(i);
+            if (allBlank(rec.fields)) {
                 continue;
             }
-            if (fields.size() > headers.size()) {
-                errors.add("línea " + lineNumber + ": " + fields.size() + " columnas, la cabecera tiene " + headers.size());
+            if (rec.fields.length > headers.size()) {
+                if (errors.size() < 20) {
+                    errors.add("línea " + rec.line + ": " + rec.fields.length + " columnas, la cabecera tiene " + headers.size());
+                }
                 continue;
             }
-            Map<String, String> values = new LinkedHashMap<>();
-            for (int c = 0; c < keys.size(); c++) {
-                values.put(keys.get(c), c < fields.size() ? fields.get(c) : "");
-            }
-            rows.add(new CsvRow(lineNumber, values));
+            rows.add(new CsvRow(rec.line, index, rec.fields));
         }
         if (!errors.isEmpty()) {
             throw new CatalogParseException(errors);
         }
-        return new CsvTable(headers, rows);
+        return new CsvTable(List.copyOf(headers), rows);
     }
 
-    private static List<List<String>> splitRecords(String text) {
-        List<List<String>> records = new ArrayList<>();
+    /** Descomprime zip (primera entrada) o gzip; si no está comprimido devuelve el contenido tal cual. */
+    static byte[] decompressIfNeeded(byte[] content) {
+        if (content == null || content.length < 4) {
+            return content == null ? new byte[0] : content;
+        }
+        try {
+            if (content[0] == 'P' && content[1] == 'K' && content[2] == 3 && content[3] == 4) {
+                try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
+                    ZipEntry entry = zip.getNextEntry();
+                    while (entry != null && entry.isDirectory()) {
+                        entry = zip.getNextEntry();
+                    }
+                    if (entry == null) {
+                        throw new CatalogParseException(List.of("el zip recibido no contiene ningún fichero"));
+                    }
+                    return zip.readAllBytes();
+                }
+            }
+            if ((content[0] & 0xff) == 0x1f && (content[1] & 0xff) == 0x8b) {
+                try (GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(content))) {
+                    return gzip.readAllBytes();
+                }
+            }
+        } catch (IOException e) {
+            throw new CatalogParseException(List.of("no se ha podido descomprimir el fichero: " + e.getMessage()));
+        }
+        return content;
+    }
+
+    private record Rec(int line, String[] fields) {
+    }
+
+    private static boolean allBlank(String[] fields) {
+        for (String f : fields) {
+            if (!f.isBlank()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static List<Rec> splitRecords(String text) {
+        List<Rec> records = new ArrayList<>();
         List<String> record = new ArrayList<>();
         StringBuilder field = new StringBuilder();
         boolean inQuotes = false;
-        boolean recordHasContent = false;
+        boolean fieldStart = true;
+        int line = 1;
+        int recordLine = 1;
 
         int i = 0;
         int n = text.length();
@@ -85,46 +143,41 @@ public final class SemicolonCsv {
                     }
                     inQuotes = false;
                 } else {
+                    if (c == '\n') {
+                        line++;
+                    }
                     field.append(c);
                 }
                 i++;
                 continue;
             }
-            switch (c) {
-                case '"' -> {
-                    inQuotes = true;
-                    recordHasContent = true;
-                }
-                case SEPARATOR -> {
-                    record.add(field.toString());
-                    field.setLength(0);
-                    recordHasContent = true;
-                }
-                case '\r' -> {
-                    // se ignora; el salto real es el '\n' que le sigue
-                }
-                case '\n' -> {
-                    record.add(field.toString());
-                    field.setLength(0);
-                    if (recordHasContent || !record.get(0).isBlank()) {
-                        records.add(record);
-                    }
-                    record = new ArrayList<>();
-                    recordHasContent = false;
-                }
-                default -> {
-                    field.append(c);
-                    recordHasContent = true;
-                }
+            if (c == '"' && fieldStart) {
+                inQuotes = true;
+                fieldStart = false;
+            } else if (c == SEPARATOR) {
+                record.add(field.toString());
+                field.setLength(0);
+                fieldStart = true;
+            } else if (c == '\n') {
+                record.add(field.toString());
+                field.setLength(0);
+                records.add(new Rec(recordLine, record.toArray(String[]::new)));
+                record = new ArrayList<>();
+                fieldStart = true;
+                line++;
+                recordLine = line;
+            } else if (c != '\r') {
+                field.append(c);
+                fieldStart = false;
             }
             i++;
         }
         if (inQuotes) {
-            throw new CatalogParseException(List.of("comillas sin cerrar al final del fichero"));
+            throw new CatalogParseException(List.of("comillas sin cerrar en el campo que empieza en la línea " + recordLine));
         }
-        if (recordHasContent || field.length() > 0) {
+        if (!record.isEmpty() || field.length() > 0) {
             record.add(field.toString());
-            records.add(record);
+            records.add(new Rec(recordLine, record.toArray(String[]::new)));
         }
         return records;
     }

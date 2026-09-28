@@ -69,25 +69,50 @@ class CatalogParsersTest {
         assertThat(projects).hasSize(5);
         SdaProject evo = projects.stream().filter(p -> p.getSdaProjectId().equals("SDATOOL-10001")).findFirst().orElseThrow();
         assertThat(evo.isEvolutionarySda()).isTrue();
-        assertThat(evo.getStartQuarter()).isEqualTo("1Q 2026");
-        assertThat(evo.getStatus()).isEqualTo("Flow");
+        assertThat(evo.getStartQuarter()).isEqualTo("1Q2026");
+        assertThat(evo.getStatus()).isEqualTo("Stock");
         assertThat(evo.getLastModifiedStatusDate()).isEqualTo(LocalDate.parse("2026-01-15"));
 
         SdaProject closed = projects.stream().filter(p -> p.getSdaProjectId().equals("SDATOOL-40123")).findFirst().orElseThrow();
         assertThat(closed.getDisabledDate()).isEqualTo(LocalDate.parse("2025-03-31"));
-        assertThat(closed.getCountry()).isEqualTo("Portugal");
+        assertThat(closed.getCountry()).isEqualTo("PORTUGAL");
     }
 
     @Test
     void issuesDeJira() {
         List<JiraIssue> issues = CatalogParsers.jiraIssues(sample(CatalogName.JIRA_ISSUES));
 
-        assertThat(issues).hasSize(5);
+        assertThat(issues).hasSize(7);
         JiraIssue ct = issues.stream().filter(i -> i.getJiraIssueId().equals("ETR-04")).findFirst().orElseThrow();
-        assertThat(ct.getType()).isEqualTo("conceptualization time");
-        assertThat(ct.getGeography()).isEqualTo("MX");
+        assertThat(ct.getType()).isEqualTo("Conceptualization Time");
+        assertThat(ct.getGeography()).isEqualTo("Mexico");
         assertThat(ct.getSdaProjectId()).isEqualTo("SDATOOL-30777");
         assertThat(ct.getStatus()).isEqualTo("New");
+
+        // como en el catálogo real: la misma issue en dos SDA, y una issue sin SDA
+        assertThat(issues).filteredOn(i -> i.getJiraIssueId().equals("ETR-01"))
+                .extracting(JiraIssue::getSdaProjectId).containsExactly("SDATOOL-37040", "SDATOOL-20500");
+        assertThat(issues).filteredOn(i -> i.getJiraIssueId().equals("ETR-06"))
+                .extracting(JiraIssue::getSdaProjectId).containsExactly((String) null);
+        assertThat(issues).extracting(JiraIssue::getGeography).contains("Global - Retail Client Solutions");
+    }
+
+    @Test
+    void unaFilaDeIssueRepetidaExactamenteSeIgnoraEnVezDeTumbarElCatalogo() {
+        List<JiraIssue> issues = CatalogParsers.jiraIssues(SemicolonCsv.parse(
+                "jira_issue_id;description;sda_project_id;status;geography;disabled_date;type\n"
+                        + "A-1;x;SDA-1;New;Spain;;Feature\nA-1;x;SDA-1;New;Spain;;Feature\nA-1;x;SDA-2;New;Spain;;Feature\n"));
+
+        assertThat(issues).extracting(JiraIssue::getSdaProjectId).containsExactly("SDA-1", "SDA-2");
+    }
+
+    @Test
+    void unasComillasAMitadDeUnTextoSonUnCaracterMas() {
+        List<NonSdaProject> projects = CatalogParsers.nonSdaProjects(SemicolonCsv.parse(
+                "description;disabled_date\nPantallas de 24\" para oficinas;\nOtro proyecto;\n"));
+
+        assertThat(projects).extracting(NonSdaProject::getDescription)
+                .containsExactly("Pantallas de 24\" para oficinas", "Otro proyecto");
     }
 
     @Test
@@ -100,8 +125,9 @@ class CatalogParsersTest {
 
         // una feature con dos SDA aparece en dos filas con la misma clave: no es un duplicado
         List<JiraIssueSdaProjectHistory> links = CatalogParsers.jiraIssueSdaProjectsHistorical(sample(CatalogName.JIRA_ISSUE_SDA_PROJECTS_HISTORICAL));
-        assertThat(links).hasSize(2);
-        assertThat(links).extracting(JiraIssueSdaProjectHistory::getSdaProjectId).containsExactly("SDATOOL-37040", "SDATOOL-10001");
+        // y con el SDA vacío la feature se quedó sin proyecto ese día
+        assertThat(links).hasSize(3);
+        assertThat(links).extracting(JiraIssueSdaProjectHistory::getSdaProjectId).containsExactly("SDATOOL-37040", "SDATOOL-20500", null);
     }
 
     @Test
@@ -117,7 +143,7 @@ class CatalogParsersTest {
         assertThat(es.getCountryCode()).isEqualTo("ESP");
         assertThat(es.getEndedMargin()).isEqualTo(1);
         assertThat(es.getOnholdMargin()).isEqualTo(2);
-        assertThat(es.getSdaCountry()).isEqualTo("Spain");
+        assertThat(es.getSdaCountry()).isEqualTo("SPAIN");
         assertThat(es.getTimezone()).isEqualTo("Europe/Madrid");
     }
 
@@ -126,7 +152,9 @@ class CatalogParsersTest {
         List<HiddenTaskType> hidden = CatalogParsers.hiddenTaskTypes(sample(CatalogName.HIDDEN_TASK_TYPES));
 
         assertThat(hidden).hasSize(2);
-        assertThat(hidden.get(0).getPersonId()).isEqualTo(PersonIdHasher.hash("xe12345"));
+        // Activity Report escribe el hash en mayúsculas; nosotros lo enviamos en minúsculas y lo acepta
+        assertThat(hidden.get(0).getPersonId()).isEqualTo(PersonIdHasher.hash("xe12345").toUpperCase());
+        assertThat(hidden.get(0).getGeography()).isEqualTo("HOLDING ARQ");
         assertThat(hidden.get(0).getDate()).isEqualTo(LocalDate.parse("2026-09-03"));
         assertThat(hidden.get(0).getTaskTypeCode()).isEqualTo("03.02");
     }

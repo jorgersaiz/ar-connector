@@ -27,8 +27,9 @@ class FeedbackServiceTest {
 
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-09-10T05:00:00Z"), ZoneId.of("Europe/Madrid"));
     private static final LocalDate SENT = LocalDate.parse("2026-09-09");
+    private static final LocalDate NEXT_DAY = LocalDate.parse("2026-09-10");
     private static final String HEADER = "date;person_id;task_level_1_code;task_level_2_code;task_level_3_code;"
-            + "task_level_4_code;task_level_5_code;sda_project_id;jira_issue_id;non_sda_project;technology_detail;time;reason\n";
+            + "task_level_4_code;task_level_5_code;sda_project_id;jira_issue_id;non_sda_project;technology_detail;time";
 
     private ActivityReportClient client;
     private FeedbackFileRepository feedbackFileRepository;
@@ -49,14 +50,39 @@ class FeedbackServiceTest {
         service = new FeedbackService(client, feedbackFileRepository, activityDayRepository, apiCallRepository, CLOCK);
     }
 
+    /** Lo que enviamos: hash en minúsculas, sin columna reason. */
+    private byte[] sentFile() {
+        return (HEADER + "\n2026-09-01;" + ana.personId() + ";01;01.01;01.01.01;01.01.01;01.01.01;SDATOOL-1;;;;480\n")
+                .getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** Lo que devuelve BBVA: hash en MAYÚSCULAS, CRLF y columna reason. */
+    private byte[] feedbackFile(String reason) {
+        return (HEADER + ";reason\r\n2026-09-01;" + ana.personId().toUpperCase()
+                + ";01;01.01;01.01.01;01.01.01;01.01.01;SDATOOL-1;;;;480;" + reason + "\r\n").getBytes(StandardCharsets.UTF_8);
+    }
+
+    private void sentOn(LocalDate day, byte[] content) {
+        ApiCall call = new ApiCall(CallChannel.ACTIVITIES_UPLOAD, Instant.parse("2026-09-09T11:00:00Z"), day, "f.csv", 1, 1, "x", content);
+        call.markOk(200);
+        when(apiCallRepository.findByChannelAndCalledAtGreaterThanEqualAndCalledAtLessThanOrderByCalledAtAsc(
+                eq(CallChannel.ACTIVITIES_UPLOAD), any(), any())).thenReturn(List.of(call));
+    }
+
+    private static ActivityReportClientException notFound() {
+        return new ActivityReportClientException(
+                "Activity Report respondió 400: {\"code\":400,\"error_code\":\"INVALID_CONFIGURATION\",\"message\":\"[API VENDORS] Feedback file not found.\"}",
+                400, null);
+    }
+
     @Test
-    void descargaAplicaYGuardaElFeedback() {
+    void elFeedbackPublicadoConLaFechaDelDiaSiguienteSeLocalizaYSeAplica() {
         ActivityDay day = new ActivityDay(ana, LocalDate.parse("2026-09-01"), DayKind.WORKED, DayOrigin.TEMPLATE);
         ActivityLine line = day.addLine("01.01.01", "SDATOOL-1", null, null, 480);
         when(activityDayRepository.findByLastSentDateWithLines(SENT)).thenReturn(List.of(day));
-        when(client.downloadActivitiesFeedback(SENT)).thenReturn((HEADER
-                + "2026-09-01;" + ana.personId() + ";01;01.01;01.01.01;01.01.01;01.01.01;SDATOOL-1;;;;480;APV_04\n")
-                .getBytes(StandardCharsets.UTF_8));
+        sentOn(SENT, sentFile());
+        when(client.downloadActivitiesFeedback(SENT)).thenThrow(notFound());
+        when(client.downloadActivitiesFeedback(NEXT_DAY)).thenReturn(feedbackFile("APV_04"));
 
         FeedbackService.Result result = service.sync(SENT);
 
@@ -69,24 +95,39 @@ class FeedbackServiceTest {
         ArgumentCaptor<FeedbackFile> saved = ArgumentCaptor.forClass(FeedbackFile.class);
         verify(feedbackFileRepository).save(saved.capture());
         assertThat(saved.getValue().getSubmissionDate()).isEqualTo(SENT);
-        assertThat(saved.getValue().getRows()).hasSize(1);
+        assertThat(saved.getValue().getFeedbackDate()).isEqualTo(NEXT_DAY);
         assertThat(saved.getValue().getRows().get(0).isMatched()).isTrue();
         verify(activityDayRepository).saveAll(List.of(day));
     }
 
     @Test
-    void un404SignificaQueTodaviaNoHayFeedback() {
-        when(client.downloadActivitiesFeedback(SENT)).thenThrow(new ActivityReportClientException("no file", 404, null));
+    void elErrorFeedbackFileNotFoundSignificaQueTodaviaNoHayFeedback() {
+        sentOn(SENT, sentFile());
+        when(client.downloadActivitiesFeedback(any())).thenThrow(notFound());
 
         FeedbackService.Result result = service.sync(SENT);
 
         assertThat(result.status()).isEqualTo(FeedbackService.Result.Status.NOT_AVAILABLE_YET);
         verify(feedbackFileRepository, never()).save(any());
+        // hoy es día 10: se prueban el 9 y el 10, nunca fechas futuras
+        verify(client, times(2)).downloadActivitiesFeedback(any());
+    }
+
+    @Test
+    void unFeedbackQueNoCorrespondeALoEnviadoNoSeAplica() {
+        sentOn(SENT, sentFile());
+        when(client.downloadActivitiesFeedback(SENT)).thenReturn(
+                (HEADER + ";reason\r\n2026-09-01;OTRAPERSONA;03;03.01;03.01;03.01;03.01;;;;;480;\r\n").getBytes(StandardCharsets.UTF_8));
+        when(client.downloadActivitiesFeedback(NEXT_DAY)).thenThrow(notFound());
+
+        assertThat(service.sync(SENT).status()).isEqualTo(FeedbackService.Result.Status.NOT_AVAILABLE_YET);
+        verify(feedbackFileRepository, never()).save(any());
     }
 
     @Test
     void otroErrorDeClienteSeInformaComoFallo() {
-        when(client.downloadActivitiesFeedback(SENT)).thenThrow(new ActivityReportClientException("503", 503, null));
+        sentOn(SENT, sentFile());
+        when(client.downloadActivitiesFeedback(any())).thenThrow(new ActivityReportClientException("503", 503, null));
 
         assertThat(service.sync(SENT).status()).isEqualTo(FeedbackService.Result.Status.FAILED);
     }

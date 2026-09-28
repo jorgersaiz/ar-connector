@@ -50,7 +50,7 @@ class MonthViewBuilderTest {
         assertThat(d1.kind()).isEqualTo(DayKind.WORKED);
         assertThat(d1.totalMinutes()).isEqualTo(480);
         assertThat(d1.locked()).isFalse();
-        assertThat(d1.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-09-19"));
+        assertThat(d1.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-09-18"));   // el 19 es sábado
         assertThat(d1.gap()).isFalse();
 
         DayView d4 = d.get(LocalDate.parse("2026-09-04"));

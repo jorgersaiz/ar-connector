@@ -66,9 +66,9 @@ DayView  = {date, classification: 'WORKING'|'WEEKEND'|'NATIONAL_HOLIDAY'|'LOCAL_
 
 | Ruta | Respuesta |
 |---|---|
-| GET `/catalogs/task-types` | `[{code, parentCode, path, descriptionEs, canBeSelected, enabled, requiresSdaProject, requiresJiraIssue, requiresNonSdaProject}]` (los `requires*` ya vienen heredados del camino; para imputar usar solo `canBeSelected && enabled`) |
-| GET `/catalogs/sda-projects` | `[{sdaProjectId, description, status, evolutionarySda, disabledDate}]` |
-| GET `/catalogs/jira-issues?sdaProjectId=` | `[{jiraIssueId, description, sdaProjectId, status, type}]` |
+| GET `/catalogs/task-types` | `[{code, parentCode, path, descriptionEs, canBeSelected, enabled, requiresSdaProject, requiresJiraIssue, requiresNonSdaProject, requiresEvolutionarySda, requiresEvolutionaryJiraIssue, requiresConceptualizationTime, jiraIssueRequired, jiraIssueExpected}]` (los `requires*` ya vienen heredados del camino; para imputar usar solo `canBeSelected && enabled`). `jiraIssueExpected`: Activity Report valida la issue en esa actividad (mostrar el campo); `jiraIssueRequired`: además es obligatoria |
+| GET `/catalogs/sda-projects?q=&evolutionary=&limit=50` | Búsqueda en servidor (el catálogo real tiene 11.500 proyectos). `q` busca en código y descripción; `evolutionary` = `true` / `false` / vacío; `limit` máximo 200. `[{sdaProjectId, description, status, evolutionarySda, disabledDate}]` |
+| GET `/catalogs/jira-issues?q=&sdaProjectId=&withoutSda=&limit=50` | Búsqueda en servidor (266.000 issues). Con `sdaProjectId`, las de ese proyecto; con `withoutSda=true`, las que no cuelgan de ningún SDA (features de evolutivo). Una issue asociada a varios SDA sale una vez por cada uno. `[{jiraIssueId, description, sdaProjectId, status, type}]` |
 | GET `/catalogs/non-sda-projects` | `[{description, disabledDate}]` |
 | GET `/catalogs` (MANAGER) | `[{catalog, lastAttemptAt, lastSuccessAt, rowCount, lastError}]` |
 | POST `/catalogs/sync` (MANAGER) | `[{catalog, success, rowCount, error, millis}]` |

@@ -46,6 +46,31 @@ class UserRegistrationTest {
     }
 
     @Test
+    void elFeedbackRealSoloTraeElHashEnMayusculasYElMotivo() {
+        // Formato del fichero de ejemplo de BBVA: users_VENDORX_20260925_feedback.csv
+        Person p = sentPerson("XE99002", "2026-09-01");
+        String hash = p.personId().toUpperCase();
+
+        List<Row> rows = UserRegistrationFeedbackParser.parse(SemicolonCsv.parse(
+                "uid;reason\r\n" + hash + ";\r\nE7713342BE08A3C82EBB50BA3E0972CAF61BD36E096AA0E7AB76E92EEFFEE31B;APV_UR_01\r\n"));
+
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0).uid()).isEqualTo(hash);
+        assertThat(rows.get(0).uids()).isEmpty();
+
+        UserRegistrationFeedbackApplier.Result r = UserRegistrationFeedbackApplier.apply(rows, List.of(p), SENT);
+        assertThat(r.registered()).isEqualTo(1);
+        assertThat(r.unmatched()).isEqualTo(1);
+        assertThat(p.getRegistrationStatus()).isEqualTo(RegistrationStatus.REGISTERED);
+    }
+
+    @Test
+    void sinIdentificadorDeUsuarioNoEsFeedback() {
+        assertThatThrownBy(() -> UserRegistrationFeedbackParser.parse(SemicolonCsv.parse("nombre;reason\nAna;\n")))
+                .isInstanceOf(CatalogParseException.class).hasMessageContaining("uid");
+    }
+
+    @Test
     void sinColumnaReasonNoEsFeedback() {
         assertThatThrownBy(() -> UserRegistrationFeedbackParser.parse(SemicolonCsv.parse("uids\nXE1\n")))
                 .isInstanceOf(CatalogParseException.class);

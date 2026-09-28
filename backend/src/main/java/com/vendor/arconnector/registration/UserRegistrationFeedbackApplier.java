@@ -12,8 +12,8 @@ import java.util.*;
  *  - sin reason -> REGISTERED; su primer día imputable en AR es el siguiente al
  *    envío, así que si la fecha de alta de la persona era anterior se adelanta,
  *  - con reason -> REJECTED con el código APV_UR_xx.
- * Las filas se casan por "uids" (en claro) o, si falta, por "uid" (hash).
- * Lógica pura, sin Spring.
+ * Las filas se casan por "uid" (hash, que es lo que devuelve el fichero real)
+ * o por "uids" (en claro) si viniera. Lógica pura, sin Spring.
  */
 public final class UserRegistrationFeedbackApplier {
 
@@ -28,7 +28,7 @@ public final class UserRegistrationFeedbackApplier {
         Map<String, Person> byHash = new HashMap<>();
         for (Person p : sentPersons) {
             byUid.put(p.getUid(), p);
-            byHash.put(p.personId(), p);
+            byHash.put(p.personId().toUpperCase(Locale.ROOT), p);   // BBVA devuelve el hash en mayúsculas
         }
         LocalDate firstDayInAr = submissionDate.plusDays(1);
 
@@ -39,7 +39,7 @@ public final class UserRegistrationFeedbackApplier {
         for (Row row : rows) {
             Person p = row.uids().isEmpty() ? null : byUid.get(row.uids());
             if (p == null && !row.uid().isEmpty()) {
-                p = byHash.get(row.uid());
+                p = byHash.get(row.uid().toUpperCase(Locale.ROOT));
             }
             if (p == null) {
                 unmatched.add(row);

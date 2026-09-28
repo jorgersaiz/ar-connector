@@ -22,4 +22,20 @@ public class ActivityReportClientException extends RuntimeException {
     public Integer getHttpStatus() {
         return httpStatus;
     }
+
+    /**
+     * true si Activity Report dice que el fichero pedido no existe (todavía).
+     * No devuelve 404 sino 400 con
+     * {@code {"code":400,"error_code":"INVALID_CONFIGURATION","message":"[API VENDORS] Feedback file not found."}}.
+     */
+    public boolean isFileNotFound() {
+        if (httpStatus == null) {
+            return false;
+        }
+        if (httpStatus == 404) {
+            return true;
+        }
+        String message = getMessage() == null ? "" : getMessage().toLowerCase(java.util.Locale.ROOT);
+        return httpStatus == 400 && message.contains("not found");
+    }
 }

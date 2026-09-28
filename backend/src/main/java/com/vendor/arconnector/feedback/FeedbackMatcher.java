@@ -25,9 +25,10 @@ public final class FeedbackMatcher {
     }
 
     public static Result apply(List<FeedbackRow> rows, Collection<ActivityDay> sentDays, LocalDate submissionDate) {
+        // Enviamos el hash en minúsculas y Activity Report lo devuelve en mayúsculas
         Map<String, ActivityDay> dayByKey = new HashMap<>();
         for (ActivityDay d : sentDays) {
-            dayByKey.put(d.getPerson().personId() + "|" + d.getActivityDate(), d);
+            dayByKey.put(d.getPerson().personId().toUpperCase(Locale.ROOT) + "|" + d.getActivityDate(), d);
         }
 
         Set<ActivityDay> touched = new HashSet<>();
@@ -36,7 +37,7 @@ public final class FeedbackMatcher {
         int rejected = 0;
 
         for (FeedbackRow row : rows) {
-            ActivityDay day = dayByKey.get(row.getPersonId() + "|" + row.getActivityDate());
+            ActivityDay day = dayByKey.get(row.getPersonId().toUpperCase(Locale.ROOT) + "|" + row.getActivityDate());
             if (day == null) {
                 unmatched.add(row);
                 continue;

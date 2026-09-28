@@ -67,8 +67,18 @@ public final class CatalogParsers {
     }
 
     // ISSUES DE PROYECTOS SDA
+    // Una misma issue viene repetida, una fila por cada SDA asociado, y puede venir sin SDA:
+    // lo que no se puede repetir es el par (issue, SDA).
     public static List<JiraIssue> jiraIssues(CsvTable table) {
-        table.requireColumns("jira_issue_id", "description", "sda_project_id", "status", "disabled_date");
+        table.requireColumns("jira_issue_id", "sda_project_id", "status");
+        java.util.Map<String, JiraIssue> unique = new java.util.LinkedHashMap<>();
+        for (JiraIssue i : parseJiraIssueRows(table)) {
+            unique.putIfAbsent(i.getJiraIssueId() + "|" + (i.getSdaProjectId() == null ? "" : i.getSdaProjectId()), i);
+        }
+        return new ArrayList<>(unique.values());
+    }
+
+    private static List<JiraIssue> parseJiraIssueRows(CsvTable table) {
         return parseRows(table, row -> {
             JiraIssue i = new JiraIssue();
             i.setJiraIssueId(row.requiredText("jira_issue_id"));
@@ -79,7 +89,7 @@ public final class CatalogParsers {
             i.setDisabledDate(row.optionalDate("disabled_date"));
             i.setType(row.optionalText("type"));
             return i;
-        }, JiraIssue::getJiraIssueId);
+        }, null);
     }
 
     // HISTÓRICO DE ESTADOS DE ISSUES
@@ -95,9 +105,10 @@ public final class CatalogParsers {
     // HISTÓRICO DE FEATURES Y PROYECTOS SDA
     public static List<JiraIssueSdaProjectHistory> jiraIssueSdaProjectsHistorical(CsvTable table) {
         table.requireColumns("jira_issue_key", "sda_project_id", "date");
+        // sda_project_id vacío = la feature se quedó sin proyecto SDA en esa fecha
         return parseRows(table, row -> new JiraIssueSdaProjectHistory(
                 row.requiredText("jira_issue_key"),
-                row.requiredText("sda_project_id"),
+                row.optionalText("sda_project_id"),
                 row.requiredDate("date")
         ), null);
     }

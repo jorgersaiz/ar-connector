@@ -14,6 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *  - La validación es sobre el día de procesamiento (N+1 respecto al envío),
  *    por lo que el último día de envío es el 19 y el 4 del mes siguiente.
  *  - No se admiten imputaciones a futuro.
+ * Confirmado por BBVA: el procesamiento no corre en fin de semana, así que si
+ * el 19 o el 4 caen en sábado o domingo el último día de envío es el viernes.
  */
 class ModifiablePeriodPolicyTest {
 
@@ -44,20 +46,31 @@ class ModifiablePeriodPolicyTest {
 
     @Test
     void ultimoDiaDeEnvioEsElAnteriorAlUltimoDiaDeProcesamiento() {
-        assertThat(policy.lastSubmissionDate(d("2026-03-10"))).isEqualTo(d("2026-03-19"));
-        assertThat(policy.lastSubmissionDate(d("2026-03-20"))).isEqualTo(d("2026-04-04"));
+        assertThat(policy.lastSubmissionDate(d("2026-03-10"))).isEqualTo(d("2026-03-19"));   // jueves
+        assertThat(policy.lastSubmissionDate(d("2026-02-20"))).isEqualTo(d("2026-03-04"));   // miércoles
     }
 
     @Test
-    void elDia19SePuedeEnviarLaPrimeraQuincenaPeroElDia20Ya_no() {
+    void siElCorteCaeEnFinDeSemanaElUltimoDiaDeEnvioEsElViernes() {
+        // 19 de septiembre de 2026 es sábado
+        assertThat(policy.lastSubmissionDate(d("2026-09-10"))).isEqualTo(d("2026-09-18"));
+        // 4 de octubre de 2026 es domingo
+        assertThat(policy.lastSubmissionDate(d("2026-09-20"))).isEqualTo(d("2026-10-02"));
+
+        assertThat(policy.canSubmitOn(d("2026-09-10"), d("2026-09-18"))).isTrue();
+        assertThat(policy.canSubmitOn(d("2026-09-10"), d("2026-09-19"))).isFalse();
+    }
+
+    @Test
+    void elDia19SePuedeEnviarLaPrimeraQuincenaPeroElDia20YaNo() {
         assertThat(policy.canSubmitOn(d("2026-03-10"), d("2026-03-19"))).isTrue();
         assertThat(policy.canSubmitOn(d("2026-03-10"), d("2026-03-20"))).isFalse();
     }
 
     @Test
     void elDia4SePuedeEnviarLaSegundaQuincenaPeroElDia5YaNo() {
-        assertThat(policy.canSubmitOn(d("2026-03-31"), d("2026-04-04"))).isTrue();
-        assertThat(policy.canSubmitOn(d("2026-03-31"), d("2026-04-05"))).isFalse();
+        assertThat(policy.canSubmitOn(d("2026-02-27"), d("2026-03-04"))).isTrue();
+        assertThat(policy.canSubmitOn(d("2026-02-27"), d("2026-03-05"))).isFalse();
     }
 
     @Test
@@ -91,5 +104,14 @@ class ModifiablePeriodPolicyTest {
 
         assertThat(dates).first().isEqualTo(d("2026-03-16"));
         assertThat(dates).last().isEqualTo(d("2026-03-20"));
+    }
+
+    @Test
+    void unEnvioRealDel24DeSeptiembreSoloLlevaLaSegundaQuincena() {
+        // El fichero de ejemplo de BBVA enviado el 24/09/2026 contiene del 16 al 24
+        List<LocalDate> dates = policy.submittableActivityDates(d("2026-09-24"));
+
+        assertThat(dates).first().isEqualTo(d("2026-09-16"));
+        assertThat(dates).last().isEqualTo(d("2026-09-24"));
     }
 }
