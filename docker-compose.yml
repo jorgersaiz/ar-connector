@@ -65,5 +65,24 @@ services:
     ports:
       - "4200:80"
 
+  # Copias de seguridad automáticas de la base de datos (ver "Copias de seguridad" en el README)
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGDATABASE: ar_connector
+      PGUSER: ar_connector
+      PGPASSWORD: changeme
+      TZ: Europe/Madrid
+      BACKUP_EVERY_HOURS: ${BACKUP_EVERY_HOURS:-24}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
+    volumes:
+      # Carpeta del PC donde quedan las copias; por defecto ./backups (git la ignora)
+      - ${BACKUP_DIR:-./backups}:/backups
+
 volumes:
   db-data:

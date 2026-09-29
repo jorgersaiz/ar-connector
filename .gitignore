@@ -6,6 +6,9 @@
 secrets/*
 !secrets/LEEME.md
 
+# Copias de seguridad de la base de datos: contienen datos personales
+backups/
+
 # Ficheros generados por el cliente en modo filesystem
 samples/catalogues/outbox/
 samples/catalogues/feedback/

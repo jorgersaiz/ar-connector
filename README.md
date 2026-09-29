@@ -160,6 +160,43 @@ Sin `.env`, el backend arranca en modo `http` sin credencial: el panel
 funciona, pero para ver catálogos y probar envíos hay que arrancar con
 `AR_CLIENT=filesystem` o configurar la credencial.
 
+## Copias de seguridad
+
+Al arrancar con `docker compose up`, el servicio `backup` hace una copia
+completa de la base de datos cada 24 horas y conserva las de los últimos 30
+días. No usa una hora fija: la hace en cuanto la última tiene más de 24 horas,
+de modo que un PC que se apaga por la noche la hace al arrancar por la mañana.
+
+Las copias quedan en la carpeta `backups/` (git la ignora), una por fichero:
+`ar_connector_<fecha>_<hora>_<tipo>.dump`. Con los catálogos reales cargados
+cada una ocupa unos 8 MB y tarda 4 segundos.
+
+| Para | Comando |
+|---|---|
+| Ver que las copias se están haciendo | `docker compose logs backup` |
+| Hacer una copia ahora (antes de un cambio delicado) | `docker compose run --rm backup backup.sh manual` |
+| Ver las copias disponibles | `docker compose run --rm backup restore.sh` |
+| Restaurar una copia | `docker compose run --rm backup restore.sh <fichero>` y después `docker compose restart backend` |
+
+La restauración sustituye la base de datos entera, pide confirmación y es
+segura ante fallos: restaura en una base de datos aparte y solo si termina
+bien sustituye a la actual; antes guarda una copia del estado que había
+(`..._antes-de-restaurar.dump`). Las copias manuales y las de antes de
+restaurar no se borran solas.
+
+Dos cosas a tener en cuenta:
+
+- **Las copias están en el mismo disco que la base de datos.** Protegen de un
+  borrado o de un volumen de Docker perdido, no de la avería o pérdida del PC.
+  Para eso, `BACKUP_DIR` en el `.env` tiene que apuntar a una carpeta
+  sincronizada o de red de Arktic.
+- **Contienen datos personales** (nombres, correos, imputaciones): la carpeta
+  de destino tiene que ser una a la que solo acceda quien deba.
+
+Restaurar no deshace lo que ya se haya enviado a Activity Report. Tras
+restaurar una copia antigua, el siguiente envío vuelve a mandar el periodo
+abierto tal como esté en la copia.
+
 ## Estructura
 
 ```
