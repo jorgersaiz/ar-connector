@@ -8,21 +8,19 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Localiza el feedback de un envío cuando no se sabe con qué fecha lo publica
- * Activity Report.
+ * Localiza el feedback de un envío.
  *
- * En los ficheros de ejemplo de BBVA, el envío del 24/09 tiene un feedback
- * llamado "..._20260925_feedback.csv": la fecha del fichero es la de
- * PROCESAMIENTO (día siguiente, o el lunes si el envío fue en viernes), pero
- * el documento dice que se pide con "la fecha del fichero de actividades".
+ * Según BBVA se pide con la fecha del ENVÍO, que es la primera que se prueba.
+ * Como red de seguridad se prueban también los días siguientes: en sus
+ * ficheros de ejemplo el envío del 24/09 tiene un feedback llamado
+ * "..._20260925_feedback.csv" (fecha de procesamiento).
  *
- * En vez de suponer, se prueban la fecha de envío y los días siguientes, y se
- * acepta el primer fichero cuyo contenido corresponde a lo que se envió. Así
+ * Solo se acepta un fichero cuyo contenido corresponde a lo que se envió. Así
  * un fichero de otro envío nunca se aplica por error. Lógica pura, sin Spring.
  */
 public final class FeedbackLocator {
 
-    /** Días posteriores al envío que se prueban (cubre un fin de semana y un festivo). */
+    /** Días posteriores al envío que se prueban si con la fecha de envío no hay fichero. */
     public static final int MAX_DAYS_AFTER = 4;
 
     /** Parte de las filas del feedback que tienen que corresponder a lo enviado. */

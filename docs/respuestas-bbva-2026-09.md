@@ -13,16 +13,17 @@ Los ficheros de ejemplo son datos de BBVA y **no se versionan**. Copiados en
 | Tema | Respuesta de BBVA | Efecto en el conector |
 |---|---|---|
 | Credencial | Una cuenta de servicio para Arktic, JSON con clave privada. La envían por Google Drive a los emails de contratista que se usen como Requestor. Rota cada enero; avisan ellos. La clave antigua no se borra hasta que Arktic confirme que la nueva funciona | Sin cambios. Conviene recordárselo por correo en enero |
-| Documentación de firma | Es la guía de consumo de APIs de platform.bbva.com. Exige iniciar sesión con cuenta de BBVA | **Pendiente**: hay que abrirla con una cuenta de contratista y pasar su contenido |
+| Documentación de firma | Es la guía de consumo de APIs de platform.bbva.com (recibida el 29/09). Arktic es una "aplicación externa": token OAuth de la cuenta de servicio con ámbito `email` y cabeceras `Authorization: Bearer`, `Requestor` y `X-BBVA-AppId` | Implementado con la librería oficial de Google; ver "Autenticación" |
 | Entornos | DEV `dev-bbva-gateway.appspot.com` (cuentas @dev.bbva.com), AU `au-bbva-gateway.appspot.com` y PRO `bbva-gateway.appspot.com` (cuentas @bbva.com) | En `.env.example` |
 | Conectividad | Accesible desde Internet | El piloto se puede hacer desde un portátil |
 | Requestor | Una o varias cuentas `xxxxx.yyyyy.contractor@bbva.com` | Sin cambios |
 | Error 400 | `{"code":400,"error_code":"INVALID_CONFIGURATION","message":"[API VENDORS] Feedback file not found."}` | Un feedback que aún no existe devuelve 400, no 404: se trata como "todavía no disponible" |
-| Procesamiento N+1 | No corre en fin de semana: si el 19 cae en sábado, el último día de envío es el 18 | `ModifiablePeriodPolicy` adelanta el corte al viernes |
+| Procesamiento N+1 | Se puede enviar cualquier día, también sábados y domingos, y el fichero se procesa al día siguiente (aclarado el 29/09; la primera lectura de la respuesta, "no corre en fin de semana", era errónea) | Los últimos días de envío son el 19 y el 4, sin ajustes |
+| Fecha del feedback | Se pide con la fecha del envío | Es la primera que prueba `FeedbackLocator`; conserva las siguientes como red de seguridad |
 | Festivos | Activity Report solo conoce los nacionales. Los locales se envían como día no imputable | Era lo implementado |
 | Herencia en el árbol | Las exigencias del nivel superior se aplican a las hojas | Era lo implementado |
 | Identificador de persona | SHA256 del código tipo XE123456 en mayúsculas | Era lo implementado |
-| Nombre del campo multipart | No contestado | Se usa `file`; se comprobará en DEV |
+| Nombre del campo multipart | No contestado | Se usa `file`, configurable con `AR_UPLOAD_FIELD_NAME` |
 | Códigos GPS | No contestado | Pendiente |
 | Convivencia con la imputación manual | No contestado | Pendiente: acordar fecha de corte |
 
@@ -49,10 +50,10 @@ saltos de línea LF; los ficheros de envío y feedback, CRLF.
 - El proveedor del ejemplo envía el hash en **minúsculas** y Activity Report lo
   acepta; el feedback lo devuelve en **mayúsculas**.
 - El feedback contiene exactamente las mismas filas que el envío, en otro orden.
-- El envío del 24/09 tiene un feedback llamado `..._20260925_feedback.csv`: **la
-  fecha del fichero es la de procesamiento**. Como no está claro con qué fecha
-  hay que pedirlo, `FeedbackLocator` prueba la de envío y las siguientes y
-  acepta el fichero cuyo contenido corresponde a lo enviado.
+- El envío del 24/09 tiene un feedback llamado `..._20260925_feedback.csv`: el
+  nombre del fichero lleva la fecha de procesamiento. Según BBVA se pide con la
+  fecha de envío; `FeedbackLocator` prueba esa primero y después las
+  siguientes, y solo acepta el fichero cuyo contenido corresponde a lo enviado.
 - El código de conceptualization time es `APV_05_CT` (el documento decía
   `APV_05_EV_CT`).
 
@@ -84,13 +85,46 @@ se comparan APV_01, APV_02 y APV_10, que dependen de la persona y su calendario.
 - En el ejemplo, de 569 altas solicitadas se aceptaron 2: la mayoría ya estaban
   registradas (APV_UR_05) o no estaban en el directorio (APV_UR_01).
 
+## Autenticación (guía de consumo de APIs, 29/09/2026)
+
+Lo que la guía establece para una aplicación externa como el conector:
+
+1. BBVA entrega una cuenta de servicio de Google con su clave en un JSON.
+2. Con esa clave se pide a Google un token de acceso con el ámbito `email`.
+   El ejemplo Java de la guía lo pide delegado a un usuario
+   (`createDelegated`); el de Python marca la delegación como opcional.
+3. Cada petición al gateway lleva `Authorization: Bearer <token>`,
+   `Requestor: <usuario>` y `X-BBVA-AppId: <client id que acompaña a la credencial>`.
+
+Lo que la guía no aclara se ha dejado como configuración, para ajustarlo sin
+tocar código cuando BBVA conteste:
+
+| Duda | Variable | Valor por defecto |
+|---|---|---|
+| Valor de `X-BBVA-AppId` | `AR_APP_ID` | el `client_id` del JSON |
+| Token delegado al Requestor o no | `AR_DELEGATE_TO_REQUESTOR` | `false` |
+| URL de cada entorno (la guía da `https://gapis.bbva.com` para PRO; BBVA contestó `bbva-gateway.appspot.com`) | `AR_BASE_URL` | AU |
+| Nombre del campo del fichero en las subidas | `AR_UPLOAD_FIELD_NAME` | `file` |
+
+Probado de punta a punta en Docker contra un Google y un gateway simulados:
+petición de token, las tres cabeceras en descargas y subidas, y subida
+`multipart/form-data`. Falta la prueba contra BBVA.
+
 ## Pendiente de BBVA
 
-1. Contenido de la guía de firma (requiere cuenta de BBVA).
-2. Códigos GPS de Arktic y geografías registradas.
-3. Si el fichero enviado un viernes se procesa el sábado o el lunes.
-4. Con qué fecha se pide el feedback (resuelto en el código probando ambas).
-5. Nombre del campo multipart.
-6. Fecha a partir de la cual la API es la única fuente de imputación para Arktic.
-7. Qué quiso decir "si están en zip, no hay nodos bloqueados". El lector
+Preguntas enviadas el 29/09/2026:
+
+1. Valor de la cabecera `X-BBVA-AppId`.
+2. Si el token debe ir delegado al usuario Requestor.
+3. Si la cuenta de servicio de Arktic ya está autorizada en el API Gateway
+   para la API de vendors en AU y PRO, o hay que tramitarlo y quién.
+4. URL de producción (`gapis.bbva.com` o `bbva-gateway.appspot.com`) y URL
+   completa de cada entorno.
+5. Si la credencial es la misma para AU y PRO, y en qué entorno se prueba.
+6. Ejemplo de petición de subida: nombre del campo y tipo de contenido.
+7. Códigos GPS de Arktic y geografías registradas.
+8. Fecha a partir de la cual la API es la única fuente de imputación para Arktic.
+9. Qué quiso decir "si están en zip, no hay nodos bloqueados". El lector
    descomprime zip y gzip por si algún catálogo llegara comprimido.
+
+Y la credencial, que BBVA envía por Google Drive a los correos Requestor.

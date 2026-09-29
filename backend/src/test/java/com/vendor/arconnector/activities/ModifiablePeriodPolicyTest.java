@@ -14,8 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *  - La validación es sobre el día de procesamiento (N+1 respecto al envío),
  *    por lo que el último día de envío es el 19 y el 4 del mes siguiente.
  *  - No se admiten imputaciones a futuro.
- * Confirmado por BBVA: el procesamiento no corre en fin de semana, así que si
- * el 19 o el 4 caen en sábado o domingo el último día de envío es el viernes.
+ * Confirmado por BBVA: se puede enviar cualquier día, también sábados y
+ * domingos, y el fichero se procesa al día siguiente.
  */
 class ModifiablePeriodPolicyTest {
 
@@ -51,14 +51,16 @@ class ModifiablePeriodPolicyTest {
     }
 
     @Test
-    void siElCorteCaeEnFinDeSemanaElUltimoDiaDeEnvioEsElViernes() {
+    void elCorteNoSeMueveAunqueCaigaEnFinDeSemana() {
         // 19 de septiembre de 2026 es sábado
-        assertThat(policy.lastSubmissionDate(d("2026-09-10"))).isEqualTo(d("2026-09-18"));
+        assertThat(policy.lastSubmissionDate(d("2026-09-10"))).isEqualTo(d("2026-09-19"));
         // 4 de octubre de 2026 es domingo
-        assertThat(policy.lastSubmissionDate(d("2026-09-20"))).isEqualTo(d("2026-10-02"));
+        assertThat(policy.lastSubmissionDate(d("2026-09-20"))).isEqualTo(d("2026-10-04"));
 
-        assertThat(policy.canSubmitOn(d("2026-09-10"), d("2026-09-18"))).isTrue();
-        assertThat(policy.canSubmitOn(d("2026-09-10"), d("2026-09-19"))).isFalse();
+        assertThat(policy.canSubmitOn(d("2026-09-10"), d("2026-09-19"))).isTrue();
+        assertThat(policy.canSubmitOn(d("2026-09-10"), d("2026-09-20"))).isFalse();
+        assertThat(policy.canSubmitOn(d("2026-09-20"), d("2026-10-04"))).isTrue();
+        assertThat(policy.canSubmitOn(d("2026-09-20"), d("2026-10-05"))).isFalse();
     }
 
     @Test

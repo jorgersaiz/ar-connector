@@ -98,9 +98,13 @@ public class UserRegistrationService {
             log.info("Registro de usuarios enviado: {} persona(s)", file.count());
             return new UploadResult(UploadResult.Status.SENT, submissionDate, file.count(), call.getId(), null);
         } catch (ActivityReportClientException e) {
+            log.error("Fallo enviando el registro de usuarios: {}", e.getMessage());
+            if (e.isNotSent()) {
+                // la petición no ha salido: no es una llamada y no cuenta para la cuota
+                return new UploadResult(UploadResult.Status.FAILED, submissionDate, file.count(), null, e.getMessage());
+            }
             call.markFailed(e.getHttpStatus(), e.getMessage());
             apiCallRepository.save(call);
-            log.error("Fallo enviando el registro de usuarios: {}", e.getMessage());
             return new UploadResult(UploadResult.Status.FAILED, submissionDate, file.count(), call.getId(), e.getMessage());
         }
     }

@@ -1,7 +1,10 @@
-# Secretos y configuraciÃƒÂ³n local
+# Secretos y configuración local
 .env
 *.pem
 *.json.credentials
+# Credencial de la cuenta de servicio de BBVA: solo se versiona el LEEME
+secrets/*
+!secrets/LEEME.md
 
 # Ficheros generados por el cliente en modo filesystem
 samples/catalogues/outbox/

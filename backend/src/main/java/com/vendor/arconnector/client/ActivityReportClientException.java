@@ -4,6 +4,7 @@ package com.vendor.arconnector.client;
 public class ActivityReportClientException extends RuntimeException {
 
     private final Integer httpStatus;
+    private final boolean notSent;
 
     public ActivityReportClientException(String message) {
         this(message, null, null);
@@ -14,13 +15,31 @@ public class ActivityReportClientException extends RuntimeException {
     }
 
     public ActivityReportClientException(String message, Integer httpStatus, Throwable cause) {
+        this(message, httpStatus, cause, false);
+    }
+
+    private ActivityReportClientException(String message, Integer httpStatus, Throwable cause, boolean notSent) {
         super(message, cause);
         this.httpStatus = httpStatus;
+        this.notSent = notSent;
+    }
+
+    /**
+     * Fallo anterior al envío (falta la credencial, Google no concede el
+     * token...): la petición no ha salido hacia Activity Report.
+     */
+    public static ActivityReportClientException notSent(String message, Throwable cause) {
+        return new ActivityReportClientException(message, null, cause, true);
     }
 
     /** Código HTTP de la respuesta, o null si no llegó a haber respuesta. */
     public Integer getHttpStatus() {
         return httpStatus;
+    }
+
+    /** true si la petición no llegó a salir, por lo que no cuenta para la cuota diaria de llamadas. */
+    public boolean isNotSent() {
+        return notSent;
     }
 
     /**

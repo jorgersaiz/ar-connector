@@ -26,8 +26,8 @@ class OpenPeriodsTest {
         OpenPeriods.Period second = periods.get(1);
         assertThat(second.label()).isEqualTo("2ª quincena de marzo 2026");
         assertThat(second.to()).isEqualTo(LocalDate.parse("2026-03-31"));
-        // el 4 de abril de 2026 es sábado: el último día de envío es el viernes 3
-        assertThat(second.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-04-03"));
+        // el 4 de abril de 2026 es sábado: el corte no se mueve
+        assertThat(second.lastSubmissionDate()).isEqualTo(LocalDate.parse("2026-04-04"));
     }
 
     @Test
@@ -40,11 +40,11 @@ class OpenPeriodsTest {
     }
 
     @Test
-    void conElCorteEnSabadoLaQuincenaSeCierraElViernes() {
-        // 19 de septiembre de 2026 es sábado: el viernes 18 todavía está abierta, el sábado ya no
-        assertThat(OpenPeriods.on(LocalDate.parse("2026-09-18"), policy)).extracting(OpenPeriods.Period::label)
-                .containsExactly("1ª quincena de septiembre 2026", "2ª quincena de septiembre 2026");
+    void conElCorteEnSabadoLaQuincenaSigueAbiertaEseDia() {
+        // 19 de septiembre de 2026 es sábado: ese día todavía se puede enviar, el domingo 20 ya no
         assertThat(OpenPeriods.on(LocalDate.parse("2026-09-19"), policy)).extracting(OpenPeriods.Period::label)
+                .containsExactly("1ª quincena de septiembre 2026", "2ª quincena de septiembre 2026");
+        assertThat(OpenPeriods.on(LocalDate.parse("2026-09-20"), policy)).extracting(OpenPeriods.Period::label)
                 .containsExactly("2ª quincena de septiembre 2026");
     }
 }

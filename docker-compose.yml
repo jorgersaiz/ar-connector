@@ -27,8 +27,14 @@ services:
       DB_USER: ar_connector
       DB_PASSWORD: changeme
       # Valores en un fichero .env local (no versionado); ver .env.example
-      AR_BASE_URL: ${AR_BASE_URL:-https://dev-bbva-gateway.appspot.com/timereport/api/vendors}
+      AR_BASE_URL: ${AR_BASE_URL:-https://au-bbva-gateway.appspot.com/timereport/api/vendors}
       AR_REQUESTOR_EMAIL: ${AR_REQUESTOR_EMAIL:-}
+      # Credencial de la cuenta de servicio: fichero dentro de ./secrets (ver secrets/LEEME.md)
+      AR_CREDENTIALS_FILE: ${AR_CREDENTIALS_FILE:-}
+      AR_APP_ID: ${AR_APP_ID:-}
+      AR_DELEGATE_TO_REQUESTOR: ${AR_DELEGATE_TO_REQUESTOR:-false}
+      AR_SCOPE: ${AR_SCOPE:-email}
+      AR_UPLOAD_FIELD_NAME: ${AR_UPLOAD_FIELD_NAME:-file}
       AR_GPS_CODES: ${AR_GPS_CODES:-}
       AR_GEOGRAPHIES: ${AR_GEOGRAPHIES:-}
       # Mientras no haya credenciales, AR_CLIENT=filesystem lee los catálogos de ./samples/catalogues
@@ -48,6 +54,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-ar-connector@arktic.local}
     volumes:
       - ./samples:/app/samples
+      - ./secrets:/app/secrets:ro
     ports:
       - "8080:8080"
 

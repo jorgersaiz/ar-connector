@@ -120,6 +120,21 @@ class ActivitiesUploadServiceTest {
     }
 
     @Test
+    void siLaPeticionNoLlegaASalirNoSeRegistraLlamadaNiGastaCuota() {
+        when(snapshotService.buildFor(TODAY, true)).thenReturn(snapshot(CONTENT, 5, 7, List.of(11L)));
+        doThrow(ActivityReportClientException.notSent("No hay credencial de Activity Report configurada", null))
+                .when(client).uploadActivitiesFile(any(), any());
+
+        UploadOutcome outcome = service.uploadNow();
+
+        assertThat(outcome.status()).isEqualTo(UploadOutcome.Status.FAILED);
+        assertThat(outcome.error()).contains("credencial");
+        assertThat(outcome.apiCallId()).isNull();
+        verify(apiCallRepository, never()).save(any());
+        verify(activityDayRepository, never()).markSent(any(), any(), any());
+    }
+
+    @Test
     void unFicheroIdenticoAlUltimoEnviadoHoyNoGastaCuota() {
         when(snapshotService.buildFor(TODAY, true)).thenReturn(snapshot(CONTENT, 5, 7, List.of(11L)));
         ApiCall previous = new ApiCall(CHANNEL, Instant.parse("2026-09-09T07:00:00Z"), TODAY, "f.csv", 5, 7,

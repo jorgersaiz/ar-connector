@@ -20,10 +20,15 @@ public class HttpActivityReportClient implements ActivityReportClient {
 
     private final RestClient restClient;
     private final RequestAuthenticator authenticator;
+    private final String uploadFieldName;
 
-    public HttpActivityReportClient(String baseUrl, RequestAuthenticator authenticator) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+    /**
+     * @param uploadFieldName nombre del campo multipart que lleva el fichero en las subidas
+     */
+    public HttpActivityReportClient(RestClient.Builder builder, RequestAuthenticator authenticator, String uploadFieldName) {
+        this.restClient = builder.build();
         this.authenticator = authenticator;
+        this.uploadFieldName = uploadFieldName;
     }
 
     @Override
@@ -53,7 +58,7 @@ public class HttpActivityReportClient implements ActivityReportClient {
 
     private void upload(String path, String what, byte[] content, String fileName) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", new ByteArrayResource(content) {
+        body.add(uploadFieldName, new ByteArrayResource(content) {
             @Override
             public String getFilename() {
                 return fileName;

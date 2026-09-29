@@ -29,7 +29,7 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | Pieza | Regla del documento que aplica |
 |---|---|
 | `PersonIdHasher` | `person_id` = SHA256 del uid en mayúsculas |
-| `ModifiablePeriodPolicy` | 1ª quincena modificable del 1 al 20, 2ª del 15 al 5 del mes+1, validación sobre el día de procesamiento (N+1), sin futuro. El procesamiento no corre en fin de semana: si el último día de envío (19 o 4) cae en sábado o domingo, se adelanta al viernes |
+| `ModifiablePeriodPolicy` | 1ª quincena modificable del 1 al 20, 2ª del 15 al 5 del mes+1, validación sobre el día de procesamiento (N+1), sin futuro. Los últimos días de envío son el 19 y el 4, caigan en el día que caigan: se puede enviar también en fin de semana |
 | `TaskTree` | cinco niveles repitiendo el último, solo nodos `can_be_selected`, `disabled_date` inclusivo, exigencia de SDA/Jira/no SDA heredada del camino |
 | `ActivitiesFileBuilder` | cabecera y separador `;`, minutos 1..1440, suma diaria ≤ 1440, día no imputable como fila con solo fecha y `person_id`, `technology_detail` siempre vacío, líneas duplicadas (APV_09), campos con `;` |
 | `WorkCalendar` | fines de semana y festivos nacionales no se envían; festivos locales van como día no imputable |
@@ -40,11 +40,12 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `CatalogSyncJob` | sincronización diaria a las 4:00 (los ficheros están disponibles desde las 3:00) |
 | `GET/POST /api/catalogs` | estado de cada catálogo y sincronización manual (`POST /api/catalogs/sync`, `POST /api/catalogs/{nombre}/sync`) |
 | `FileSystemActivityReportClient` | modo `AR_CLIENT=filesystem`: lee `samples/catalogues/<catalogo>.csv` y escribe los ficheros subidos en `samples/catalogues/outbox/`, para probar sin credenciales |
+| `HttpActivityReportClient` + `ServiceAccountRequestAuthenticator` + `GoogleAccessTokenSource` | modo `AR_CLIENT=http`: llamadas al API Gateway de BBVA como "aplicación externa", según su guía de consumo de APIs. Con el JSON de la cuenta de servicio se pide a Google un token (ámbito `email`, delegación opcional) que se renueva solo, y cada petición lleva `Authorization: Bearer`, `Requestor` y `X-BBVA-AppId`. Un fallo anterior al envío (sin credencial, token denegado) no sale hacia BBVA ni cuenta para la cuota |
 | `CallQuotaService` | cuota diaria por canal: 3 llamadas si la última fue OK, 6 si fue KO; el día es el de `jobs.timezone` |
 | `ActivitiesUploadService` | reconstruye el periodo abierto, excluye los días inválidos (no bloquea al equipo), no gasta cuota si el fichero es idéntico al último enviado con éxito hoy, registra cada llamada con el fichero exacto en `api_call` y marca los días enviados |
 | `UploadJob` | envío a las 13:00, 18:00 y 21:00 todos los días (los cortes pueden caer en fin de semana) |
 | `/api/uploads` | `GET /preview` (fichero sin enviar), `POST /run`, `GET /quota`, `GET` histórico, `GET /{id}/file` |
-| `FeedbackService` + `FeedbackLocator` + `FeedbackMatcher` | descarga el feedback de cada envío OK (a partir de las 3:00 del día siguiente), guarda el fichero y sus filas, y marca el `rejectReason` (APV_xx) en la línea o el día correspondiente. El fichero lleva la fecha de procesamiento, no la de envío: se prueban la fecha de envío y las siguientes y se acepta el que corresponde a lo enviado. Un 404, o el 400 "Feedback file not found" que devuelve BBVA, es "todavía no disponible" y se reintenta |
+| `FeedbackService` + `FeedbackLocator` + `FeedbackMatcher` | descarga el feedback de cada envío OK (a partir de las 3:00 del día siguiente), guarda el fichero y sus filas, y marca el `rejectReason` (APV_xx) en la línea o el día correspondiente. Se pide con la fecha de envío; como red de seguridad se prueban también las siguientes, y solo se acepta el fichero que corresponde a lo enviado. Un 404, o el 400 "Feedback file not found" que devuelve BBVA, es "todavía no disponible" y se reintenta |
 | `FeedbackSyncJob` | 4:30 y 10:30; `/api/feedback` para listar, forzar y ver rechazos |
 | `/api/persons` | alta, baja y edición de personas; plantillas por defecto (`/{id}/templates`); días explícitos (`/{id}/days/{fecha}`), validados contra el árbol al guardarlos |
 | `/api/holidays` | festivos por geografía y año |
@@ -64,10 +65,9 @@ ejemplo y lo que sigue pendiente están en `docs/respuestas-bbva-2026-09.md`.
 
 Pendiente (en este orden):
 
-1. Cliente HTTP firmado con la Service Account. Falta el contenido de la guía
-   de consumo de APIs (exige iniciar sesión con cuenta de BBVA) y la
-   credencial. Hoy `PendingRequestAuthenticator` solo pone la cabecera
-   `Requestor`.
+1. Primera conexión real, cuando BBVA entregue la credencial y confirme que
+   la cuenta de servicio está autorizada en el API Gateway. Pasos en
+   "Conectar con Activity Report".
 2. Sustituir el login provisional por Entra ID.
 3. Tests de integración contra PostgreSQL (Testcontainers).
 4. Infraestructura Azure (Bicep) y pipeline de despliegue.
@@ -75,6 +75,27 @@ Pendiente (en este orden):
 Datos de infraestructura de Arktic que harán falta: SMTP para los avisos
 (`MAIL_HOST`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`), URL pública del
 panel (`PANEL_URL`) y el registro de la aplicación en Entra ID.
+
+## Conectar con Activity Report
+
+1. Guardar el JSON de la cuenta de servicio en `secrets/` (git ignora la
+   carpeta; ver `secrets/LEEME.md`).
+2. Copiar `.env.example` como `.env` y rellenar `AR_CLIENT=http`,
+   `AR_BASE_URL` (entorno), `AR_REQUESTOR_EMAIL` y `AR_CREDENTIALS_FILE`.
+3. `docker compose up --build -d`. El log del backend dice con qué credencial,
+   ámbito y Requestor arranca.
+4. Primera prueba, de solo lectura: en el panel, Catálogos → sincronizar
+   (o `POST /api/catalogs/countries/sync`). El error, si lo hay, queda en la
+   fila del catálogo.
+
+| Si falla con | Causa probable | Qué cambiar |
+|---|---|---|
+| "No existe el fichero de la credencial" | ruta mal puesta: tiene que ser la de dentro del contenedor | `AR_CREDENTIALS_FILE=/app/secrets/<fichero>.json` |
+| "Google no ha concedido el token ... unauthorized_client" | se pide delegación y la cuenta de servicio no la tiene | `AR_DELEGATE_TO_REQUESTOR=false` |
+| "Google no ha concedido el token ... invalid_grant" | credencial retirada o reloj del equipo desajustado | pedir la credencial vigente; sincronizar la hora |
+| Activity Report respondió 401 | el gateway no acepta el token: puede exigir delegación | `AR_DELEGATE_TO_REQUESTOR=true` |
+| Activity Report respondió 403 | cuenta de servicio o Requestor sin autorizar en el gateway, o `X-BBVA-AppId` incorrecto | pedir la autorización a BBVA; `AR_APP_ID` |
+| Activity Report respondió 400 al subir | nombre del campo del fichero | `AR_UPLOAD_FIELD_NAME` |
 
 ## Probar la sincronización sin credenciales
 
@@ -135,8 +156,9 @@ docker compose up --build
 - API backend: http://localhost:8080
 - PostgreSQL: localhost:5432 (`ar_connector` / `changeme`)
 
-Las credenciales de Activity Report irán en un fichero `.env` no versionado
-cuando exista el cliente firmado.
+Sin `.env`, el backend arranca en modo `http` sin credencial: el panel
+funciona, pero para ver catálogos y probar envíos hay que arrancar con
+`AR_CLIENT=filesystem` o configurar la credencial.
 
 ## Estructura
 

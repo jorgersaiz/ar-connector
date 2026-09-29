@@ -26,7 +26,7 @@ spring:
 server:
   port: 8080
 
-# URL pÃºblica del panel, para los enlaces de los avisos
+# URL pública del panel, para los enlaces de los avisos
 panel:
   url: ${PANEL_URL:http://localhost:4200}
 
@@ -39,16 +39,25 @@ notifications:
 # Datos que el proveedor comunica a los administradores de Activity Report
 # (entidad "Vendors" del documento). Si no cuadran, BBVA rechaza la llamada.
 activity-report:
-  base-url: ${AR_BASE_URL:https://dev-bbva-gateway.appspot.com/timereport/api/vendors}
+  base-url: ${AR_BASE_URL:https://au-bbva-gateway.appspot.com/timereport/api/vendors}
   requestor-email: ${AR_REQUESTOR_EMAIL:}
   gps-codes: ${AR_GPS_CODES:}
   geographies: ${AR_GEOGRAPHIES:}
-  # http: contra BBVA (pendiente de la firma con la Service Account).
+  # http: contra BBVA, autenticado con la cuenta de servicio.
   # filesystem: lee <local-dir>/<catalogo>.csv, para desarrollar sin credenciales.
   client: ${AR_CLIENT:http}
   local-dir: ${AR_LOCAL_DIR:../samples/catalogues}
+  # JSON de la cuenta de servicio que entrega BBVA. Nunca en el repositorio.
+  credentials-file: ${AR_CREDENTIALS_FILE:}
+  # Cabecera X-BBVA-AppId; vacío = el client_id del JSON de la credencial.
+  app-id: ${AR_APP_ID:}
+  # true = el token se pide delegado al usuario Requestor.
+  delegate-to-requestor: ${AR_DELEGATE_TO_REQUESTOR:false}
+  scope: ${AR_SCOPE:email}
+  # Nombre del campo multipart con el fichero en las subidas.
+  upload-field-name: ${AR_UPLOAD_FIELD_NAME:file}
 
-# Primer usuario MANAGER del panel; solo se crea si la tabla app_user estÃ¡ vacÃ­a.
+# Primer usuario MANAGER del panel; solo se crea si la tabla app_user está vacía.
 auth:
   bootstrap:
     email: ${ADMIN_EMAIL:admin@arktic.local}
@@ -57,13 +66,13 @@ auth:
 jobs:
   timezone: Europe/Madrid
   catalog-sync:
-    cron: "0 0 4 * * *"   # los catÃ¡logos estÃ¡n disponibles a partir de las 3:00
+    cron: "0 0 4 * * *"   # los catálogos están disponibles a partir de las 3:00
   upload:
-    cron: "0 0 13,18,21 * * *"   # todos los dÃ­as: los cortes (19 y 4) pueden caer en fin de semana
+    cron: "0 0 13,18,21 * * *"   # todos los días: los cortes (19 y 4) pueden caer en fin de semana
   feedback-sync:
-    cron: "0 30 4,10 * * *"      # el feedback estÃ¡ disponible a partir de las 3:00; segundo intento a media maÃ±ana
+    cron: "0 30 4,10 * * *"      # el feedback está disponible a partir de las 3:00; segundo intento a media mañana
   notifications:
-    cron: "0 0 9 * * *"          # avisos de huecos y rechazos, tras catÃ¡logos y feedback
+    cron: "0 0 9 * * *"          # avisos de huecos y rechazos, tras catálogos y feedback
 
 logging:
   level:

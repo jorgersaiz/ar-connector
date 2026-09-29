@@ -109,9 +109,14 @@ public class ActivitiesUploadService {
             return new UploadOutcome(UploadOutcome.Status.SENT, submissionDate, call.getId(), file.dayCount(), file.rowCount(),
                     snapshot.problems().size(), snapshot.problems(), snapshot.gaps(), null);
         } catch (ActivityReportClientException e) {
+            log.error("Fallo enviando el fichero de imputaciones: {}", e.getMessage());
+            if (e.isNotSent()) {
+                // la petición no ha salido: no es una llamada y no cuenta para la cuota
+                return new UploadOutcome(UploadOutcome.Status.FAILED, submissionDate, null, file.dayCount(), file.rowCount(),
+                        snapshot.problems().size(), snapshot.problems(), snapshot.gaps(), e.getMessage());
+            }
             call.markFailed(e.getHttpStatus(), e.getMessage());
             apiCallRepository.save(call);
-            log.error("Fallo enviando el fichero de imputaciones: {}", e.getMessage());
             return new UploadOutcome(UploadOutcome.Status.FAILED, submissionDate, call.getId(), file.dayCount(), file.rowCount(),
                     snapshot.problems().size(), snapshot.problems(), snapshot.gaps(), e.getMessage());
         }

@@ -63,21 +63,15 @@ public final class ModifiablePeriodPolicy {
 
     /**
      * Último día en el que se puede ENVIAR esa fecha de actividad: el 19 (1ª
-     * quincena) o el 4 del mes siguiente (2ª quincena), adelantado al viernes
-     * anterior si cae en fin de semana.
+     * quincena) o el 4 del mes siguiente (2ª quincena), caiga en el día de la
+     * semana que caiga.
      *
-     * Confirmado por BBVA (septiembre 2026): el procesamiento N+1 no corre en
-     * fin de semana, así que si el 19 es sábado el último día de envío es el 18.
-     * TODO: comprobar en el piloto si el fichero del viernes se procesa el
-     * sábado o el lunes; si fuera el lunes, el límite real sería el jueves.
+     * Confirmado por BBVA (septiembre 2026): se puede enviar también sábados y
+     * domingos y el fichero se procesa al día siguiente; no hay ningún día en el
+     * que no se pueda enviar.
      */
     public LocalDate lastSubmissionDate(LocalDate activityDate) {
-        LocalDate nominal = lastProcessingDate(activityDate).minusDays(PROCESSING_LAG_DAYS);
-        return switch (nominal.getDayOfWeek()) {
-            case SATURDAY -> nominal.minusDays(1);
-            case SUNDAY -> nominal.minusDays(2);
-            default -> nominal;
-        };
+        return lastProcessingDate(activityDate).minusDays(PROCESSING_LAG_DAYS);
     }
 
     /**
