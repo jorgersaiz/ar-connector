@@ -12,7 +12,7 @@ import { ApiService } from '../../core/api.service';
 import { NotifyService } from '../../core/notify.service';
 import { fromIso } from '../../core/dates';
 import {
-  Dashboard, DashboardPerson, Notification, NotificationConfig, NotificationKind, NotificationRunResult,
+  AppConfig, Dashboard, DashboardPerson, Notification, NotificationConfig, NotificationKind, NotificationRunResult,
 } from '../../core/models';
 import { NotificationDialogComponent, notificationKindLabel } from './notification-dialog.component';
 
@@ -33,6 +33,10 @@ const NOTIFICATIONS_LIMIT = 50;
     <div class="page">
       <div class="page-header">
         <h1>Situación del periodo</h1>
+        @if (appConfig(); as a) {
+          <span class="env-chip" [class.env-pro]="a.environment === 'PRO'" [class.env-local]="a.environment === 'LOCAL'"
+                [matTooltip]="envTooltip(a)">{{ envLabel(a) }}</span>
+        }
         <span class="spacer"></span>
         <button mat-stroked-button (click)="reload()" [disabled]="loading()"><mat-icon>refresh</mat-icon> Actualizar</button>
         <button mat-stroked-button (click)="goToUploads()"><mat-icon>preview</mat-icon> Previsualizar envío</button>
@@ -248,6 +252,9 @@ const NOTIFICATIONS_LIMIT = 50;
     .count { font-weight: 500; margin-right: 8px; }
     .small-value { font-size: 18px; padding-top: 6px; }
     .hint-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .env-chip { margin-left: 12px; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; background: #e3f2fd; color: #0d47a1; cursor: default; }
+    .env-chip.env-pro { background: #fdecea; color: #b3261e; }
+    .env-chip.env-local { background: #ececec; color: #555; }
     tr.clickable { cursor: pointer; }
     tr.clickable:hover td { background: #f0f4f8; }
     td.mat-mdc-cell { padding-top: 6px; padding-bottom: 6px; }
@@ -267,6 +274,7 @@ export class DashboardComponent implements OnInit {
 
   readonly dashboard = signal<Dashboard | null>(null);
   readonly config = signal<NotificationConfig | null>(null);
+  readonly appConfig = signal<AppConfig | null>(null);
   readonly notifications = signal<Notification[]>([]);
   readonly loading = signal(false);
   readonly loadingNotifications = signal(false);
@@ -291,6 +299,22 @@ export class DashboardComponent implements OnInit {
 
   loadConfig(): void {
     this.api.notificationsConfig().subscribe({ next: (c) => this.config.set(c), error: (e: unknown) => this.notify.error(e) });
+    this.api.config().subscribe({ next: (c) => this.appConfig.set(c), error: (e: unknown) => this.notify.error(e) });
+  }
+
+  envLabel(a: AppConfig): string {
+    switch (a.environment) {
+      case 'LOCAL': return 'Sin conexión con BBVA (ficheros de ejemplo)';
+      case 'PRO': return 'PRODUCCIÓN';
+      case 'OTRO': return 'Entorno: otro';
+      default: return 'Entorno de pruebas ' + a.environment;
+    }
+  }
+
+  envTooltip(a: AppConfig): string {
+    if (a.environment === 'LOCAL') return 'Los catálogos y los envíos se leen y escriben en la carpeta de ejemplos; no se habla con Activity Report';
+    return a.baseUrl + (a.requestorEmail ? ' · Requestor ' + a.requestorEmail : '')
+        + (a.credentialsConfigured ? '' : ' · SIN CREDENCIAL: las llamadas fallarán');
   }
 
   loadNotifications(): void {

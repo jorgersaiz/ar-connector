@@ -11,6 +11,18 @@ export interface Me {
   personDisplayName: string | null;
 }
 
+/** Configuración del conector que el panel muestra o usa por defecto (nada secreto). */
+export interface AppConfig {
+  /** DEV, AU, PRO, LOCAL (ficheros de ejemplo) u OTRO */
+  environment: string;
+  baseUrl: string;
+  requestorEmail: string;
+  credentialsConfigured: boolean;
+  /** Códigos GPS de la empresa comunicados a BBVA */
+  gpsCodes: string[];
+  geographies: string[];
+}
+
 export interface User {
   id: number;
   email: string;

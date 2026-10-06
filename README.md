@@ -78,12 +78,13 @@ panel (`PANEL_URL`) y el registro de la aplicación en Entra ID.
 
 ## Conectar con Activity Report
 
-1. Guardar el JSON de la cuenta de servicio en `secrets/` (git ignora la
-   carpeta; ver `secrets/LEEME.md`).
+1. Guardar el JSON de la cuenta de servicio del entorno en `secrets/` (git
+   ignora la carpeta; ver `secrets/LEEME.md`). Hay una credencial por entorno.
 2. Copiar `.env.example` como `.env` y rellenar `AR_CLIENT=http`,
    `AR_BASE_URL` (entorno), `AR_REQUESTOR_EMAIL` y `AR_CREDENTIALS_FILE`.
+   El resto de valores de autenticación ya coinciden con lo que confirmó BBVA.
 3. `docker compose up --build -d`. El log del backend dice con qué credencial,
-   ámbito y Requestor arranca.
+   ámbito y Requestor arranca, y la pantalla "Situación" muestra el entorno.
 4. Primera prueba, de solo lectura: en el panel, Catálogos → sincronizar
    (o `POST /api/catalogs/countries/sync`). El error, si lo hay, queda en la
    fila del catálogo.
@@ -93,9 +94,9 @@ panel (`PANEL_URL`) y el registro de la aplicación en Entra ID.
 | "No existe el fichero de la credencial" | ruta mal puesta: tiene que ser la de dentro del contenedor | `AR_CREDENTIALS_FILE=/app/secrets/<fichero>.json` |
 | "Google no ha concedido el token ... unauthorized_client" | se pide delegación y la cuenta de servicio no la tiene | `AR_DELEGATE_TO_REQUESTOR=false` |
 | "Google no ha concedido el token ... invalid_grant" | credencial retirada o reloj del equipo desajustado | pedir la credencial vigente; sincronizar la hora |
-| Activity Report respondió 401 | el gateway no acepta el token: puede exigir delegación | `AR_DELEGATE_TO_REQUESTOR=true` |
-| Activity Report respondió 403 | cuenta de servicio o Requestor sin autorizar en el gateway, o `X-BBVA-AppId` incorrecto | pedir la autorización a BBVA; `AR_APP_ID` |
-| Activity Report respondió 400 al subir | nombre del campo del fichero | `AR_UPLOAD_FIELD_NAME` |
+| Activity Report respondió 401 | el gateway no acepta el token: credencial de otro entorno, o retirada | comprobar que `AR_CREDENTIALS_FILE` es la del entorno de `AR_BASE_URL` |
+| Activity Report respondió 403 | el Requestor no está registrado para Arktic, o la autorización en el gateway no está hecha | pedir a BBVA que lo revise |
+| Activity Report respondió 400 al subir | el cuerpo del 400 dice qué falla (cabecera, columnas...) | ver el mensaje en Envíos |
 
 ## Probar la sincronización sin credenciales
 

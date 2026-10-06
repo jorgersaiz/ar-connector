@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -39,6 +39,7 @@ export interface PersonDialogData {
           <mat-form-field>
             <mat-label>Código GPS</mat-label>
             <input matInput formControlName="gpsCode" />
+            @if (gpsHint()) { <mat-hint>{{ gpsHint() }}</mat-hint> }
           </mat-form-field>
         </div>
         <mat-form-field>
@@ -91,13 +92,27 @@ export interface PersonDialogData {
     </mat-dialog-actions>
   `,
 })
-export class PersonDialogComponent {
+export class PersonDialogComponent implements OnInit {
   readonly data = inject<PersonDialogData>(MAT_DIALOG_DATA);
   readonly ref = inject(MatDialogRef<PersonDialogComponent, Person | null>);
   private readonly api = inject(ApiService);
 
   readonly saving = signal(false);
   readonly errors = signal<string[]>([]);
+  /** Código GPS de la empresa registrado en BBVA; se propone al dar de alta. */
+  readonly gpsHint = signal('');
+
+  ngOnInit(): void {
+    this.api.config().subscribe({
+      next: (c) => {
+        if (c.gpsCodes.length === 0) return;
+        this.gpsHint.set('Código de la empresa en BBVA: ' + c.gpsCodes.join(', '));
+        const gps = this.form.controls.gpsCode;
+        if (!this.data.person && !gps.value && c.gpsCodes.length === 1) gps.setValue(c.gpsCodes[0]);
+      },
+      error: () => { /* sin configuración no hay valor por defecto; el campo sigue siendo editable */ },
+    });
+  }
 
   /** El alta solo se pide/desiste al crear o mientras el conector no la haya enviado (NOT_REQUIRED, PENDING, REJECTED). */
   readonly canEditRegistration = !this.data.person || ['NOT_REQUIRED', 'PENDING', 'REJECTED'].includes(this.data.person.registrationStatus);

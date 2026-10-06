@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
-  CatalogStatus, CatalogSyncResult, Dashboard, Day, DayUpsert, FeedbackFile, FeedbackRow, FeedbackSyncResult,
+  AppConfig, CatalogStatus, CatalogSyncResult, Dashboard, Day, DayUpsert, FeedbackFile, FeedbackRow, FeedbackSyncResult,
   Holiday, HolidayCreate, ImportResult, JiraIssue, Me, MonthView, NonSdaProject, Notification, NotificationConfig,
   NotificationRunResult, Person, PersonInput, RegistrationFeedbackResult, RegistrationOverview, RegistrationUploadResult,
   SdaProject, TaskType, Template, TemplateCreate, UploadPreview, UploadQuota, UploadRecord, UploadRunResult, User,
@@ -32,6 +32,9 @@ export class ApiService {
   }
   me(): Observable<Me> {
     return this.http.get<Me>(`${this.base}/auth/me`);
+  }
+  config(): Observable<AppConfig> {
+    return this.http.get<AppConfig>(`${this.base}/config`);
   }
 
   // ---- Usuarios ----

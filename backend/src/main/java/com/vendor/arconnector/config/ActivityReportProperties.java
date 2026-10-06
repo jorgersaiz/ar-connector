@@ -2,6 +2,10 @@ package com.vendor.arconnector.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+
 /**
  * Conexión con la API de vendors de Activity Report y datos que el proveedor
  * comunica a sus administradores (entidad "Vendors" del documento).
@@ -54,6 +58,42 @@ public record ActivityReportProperties(
 
     public boolean hasCredentials() {
         return !isBlank(credentialsFile);
+    }
+
+    public List<String> gpsCodeList() {
+        return split(gpsCodes);
+    }
+
+    public List<String> geographyList() {
+        return split(geographies);
+    }
+
+    /**
+     * Entorno de Activity Report al que apunta {@code baseUrl}, para que el
+     * panel lo muestre: DEV, AU, PRO, LOCAL (modo filesystem) u OTRO.
+     */
+    public String environment() {
+        if (clientOrDefault() == ClientMode.FILESYSTEM) {
+            return "LOCAL";
+        }
+        String host = isBlank(baseUrl) ? "" : baseUrl.toLowerCase(Locale.ROOT);
+        if (host.contains("dev-bbva-gateway")) {
+            return "DEV";
+        }
+        if (host.contains("au-bbva-gateway")) {
+            return "AU";
+        }
+        if (host.contains("bbva-gateway") || host.contains("gapis.bbva.com")) {
+            return "PRO";
+        }
+        return "OTRO";
+    }
+
+    private static List<String> split(String csv) {
+        if (isBlank(csv)) {
+            return List.of();
+        }
+        return Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 
     private static boolean isBlank(String s) {

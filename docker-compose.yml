@@ -35,8 +35,9 @@ services:
       AR_DELEGATE_TO_REQUESTOR: ${AR_DELEGATE_TO_REQUESTOR:-false}
       AR_SCOPE: ${AR_SCOPE:-email}
       AR_UPLOAD_FIELD_NAME: ${AR_UPLOAD_FIELD_NAME:-file}
-      AR_GPS_CODES: ${AR_GPS_CODES:-}
-      AR_GEOGRAPHIES: ${AR_GEOGRAPHIES:-}
+      # Código GPS de Arktic en BBVA y geografías de su gente
+      AR_GPS_CODES: ${AR_GPS_CODES:-0000417143}
+      AR_GEOGRAPHIES: ${AR_GEOGRAPHIES:-ES}
       # Mientras no haya credenciales, AR_CLIENT=filesystem lee los catálogos de ./samples/catalogues
       AR_CLIENT: ${AR_CLIENT:-http}
       AR_LOCAL_DIR: ${AR_LOCAL_DIR:-/app/samples/catalogues}

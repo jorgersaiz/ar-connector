@@ -23,8 +23,8 @@ Los ficheros de ejemplo son datos de BBVA y **no se versionan**. Copiados en
 | Festivos | Activity Report solo conoce los nacionales. Los locales se envían como día no imputable | Era lo implementado |
 | Herencia en el árbol | Las exigencias del nivel superior se aplican a las hojas | Era lo implementado |
 | Identificador de persona | SHA256 del código tipo XE123456 en mayúsculas | Era lo implementado |
-| Nombre del campo multipart | No contestado | Se usa `file`, configurable con `AR_UPLOAD_FIELD_NAME` |
-| Códigos GPS | No contestado | Pendiente |
+| Nombre del campo multipart | `file`, en `multipart/form-data` (ejemplo en Python con `requests`, 06/10) | Es lo implementado |
+| Códigos GPS | "ARKTIC BUSINESS CONSULTING SL [ESP] [B56152515]": `0000417143` (06/10) | `AR_GPS_CODES`; el panel lo propone al dar de alta personas |
 | Convivencia con la imputación manual | No contestado | Pendiente: acordar fecha de corte |
 
 ## Lo que enseñan los ficheros reales
@@ -96,15 +96,30 @@ Lo que la guía establece para una aplicación externa como el conector:
 3. Cada petición al gateway lleva `Authorization: Bearer <token>`,
    `Requestor: <usuario>` y `X-BBVA-AppId: <client id que acompaña a la credencial>`.
 
-Lo que la guía no aclara se ha dejado como configuración, para ajustarlo sin
-tocar código cuando BBVA conteste:
+Lo que la guía no aclaraba se dejó como configuración y BBVA lo contestó el
+06/10/2026, junto con un script de ejemplo en Python (`requests` +
+`google-auth`). Los valores por defecto del conector coinciden con lo que
+hace ese script:
 
-| Duda | Variable | Valor por defecto |
-|---|---|---|
-| Valor de `X-BBVA-AppId` | `AR_APP_ID` | el `client_id` del JSON |
-| Token delegado al Requestor o no | `AR_DELEGATE_TO_REQUESTOR` | `false` |
-| URL de cada entorno (la guía da `https://gapis.bbva.com` para PRO; BBVA contestó `bbva-gateway.appspot.com`) | `AR_BASE_URL` | AU |
-| Nombre del campo del fichero en las subidas | `AR_UPLOAD_FIELD_NAME` | `file` |
+| Duda | Respuesta de BBVA | Variable | Valor |
+|---|---|---|---|
+| Valor de `X-BBVA-AppId` | El `client_id` del JSON de la credencial | `AR_APP_ID` | vacío (= `client_id`) |
+| Token delegado al Requestor o no | El script usa el token de la propia cuenta de servicio, sin delegar | `AR_DELEGATE_TO_REQUESTOR` | `false` |
+| URL de cada entorno | `bbva-gateway.appspot.com` (PRO), `au-bbva-gateway.appspot.com` (AU), `dev-bbva-gateway.appspot.com` (DEV) | `AR_BASE_URL` | AU |
+| Nombre del campo del fichero en las subidas | `files={"file": open('activities.csv','rb')}` → campo `file`, `multipart/form-data` | `AR_UPLOAD_FIELD_NAME` | `file` |
+| Autorización en el gateway | Las cuentas de servicio ya están autorizadas; lo tramita BBVA | — | — |
+| Credencial por entorno | Una distinta para cada entorno. Piden probar en DEV y en AU; las cuentas `@dev.bbva.com` se solicitan desde el ticket de Helix | `AR_CREDENTIALS_FILE` | una ruta por entorno |
+
+Detalles del script de ejemplo:
+
+- Cabecera `requestor` en minúsculas: da igual, las cabeceras HTTP no
+  distinguen mayúsculas.
+- Lista como catálogo `other_technologies`, retirado según el documento, y
+  no lista los históricos de Jira, `countries` ni `hidden_task_types`: el
+  script es anterior a la versión 1.16. El conector sincroniza cada catálogo
+  por separado, así que uno que no exista no bloquea al resto.
+- El nombre del fichero que se sube es indiferente (documento, pág. 23); el
+  conector envía `activities_<fecha>.csv`.
 
 Probado de punta a punta en Docker contra un Google y un gateway simulados:
 petición de token, las tres cabeceras en descargas y subidas, y subida
@@ -112,19 +127,12 @@ petición de token, las tres cabeceras en descargas y subidas, y subida
 
 ## Pendiente de BBVA
 
-Preguntas enviadas el 29/09/2026:
-
-1. Valor de la cabecera `X-BBVA-AppId`.
-2. Si el token debe ir delegado al usuario Requestor.
-3. Si la cuenta de servicio de Arktic ya está autorizada en el API Gateway
-   para la API de vendors en AU y PRO, o hay que tramitarlo y quién.
-4. URL de producción (`gapis.bbva.com` o `bbva-gateway.appspot.com`) y URL
-   completa de cada entorno.
-5. Si la credencial es la misma para AU y PRO, y en qué entorno se prueba.
-6. Ejemplo de petición de subida: nombre del campo y tipo de contenido.
-7. Códigos GPS de Arktic y geografías registradas.
-8. Fecha a partir de la cual la API es la única fuente de imputación para Arktic.
-9. Qué quiso decir "si están en zip, no hay nodos bloqueados". El lector
+1. Las credenciales (una por entorno), que BBVA envía por Google Drive a los
+   correos Requestor.
+2. Cuentas `@dev.bbva.com` para probar en DEV: las pide Arktic desde el
+   ticket de Helix.
+3. Geografías registradas para Arktic (se asume `ES`).
+4. Fecha a partir de la cual la API es la única fuente de imputación para
+   Arktic (convivencia con la imputación manual).
+5. Qué quiso decir "si están en zip, no hay nodos bloqueados". El lector
    descomprime zip y gzip por si algún catálogo llegara comprimido.
-
-Y la credencial, que BBVA envía por Google Drive a los correos Requestor.

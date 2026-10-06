@@ -62,6 +62,12 @@ DayView  = {date, classification: 'WORKING'|'WEEKEND'|'NATIONAL_HOLIDAY'|'LOCAL_
             future: boolean}         // posterior a hoy
 ```
 
+## Configuración (cualquier usuario autenticado)
+
+| Ruta | Respuesta |
+|---|---|
+| GET `/config` | `{environment: 'DEV'|'AU'|'PRO'|'LOCAL'|'OTRO', baseUrl, requestorEmail, credentialsConfigured, gpsCodes: [], geographies: []}`. Nada secreto; el panel muestra el entorno y propone el código GPS al dar de alta personas |
+
 ## Catálogos (selectores: cualquier usuario autenticado)
 
 | Ruta | Respuesta |
