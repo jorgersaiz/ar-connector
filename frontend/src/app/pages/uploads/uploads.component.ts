@@ -20,6 +20,7 @@ const STATUS_LABEL: Record<UploadStatus, string> = {
   NOTHING_TO_SEND: 'Nada que enviar',
   FAILED: 'Error',
   NOT_BUILT: 'No se pudo generar',
+  DISABLED: 'Envíos desactivados por configuración',
 };
 
 @Component({

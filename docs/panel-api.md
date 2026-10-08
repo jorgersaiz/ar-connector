@@ -66,7 +66,7 @@ DayView  = {date, classification: 'WORKING'|'WEEKEND'|'NATIONAL_HOLIDAY'|'LOCAL_
 
 | Ruta | Respuesta |
 |---|---|
-| GET `/config` | `{environment: 'DEV'|'AU'|'PRO'|'LOCAL'|'OTRO', baseUrl, requestorEmail, credentialsConfigured, gpsCodes: [], geographies: []}`. Nada secreto; el panel muestra el entorno y propone el código GPS al dar de alta personas |
+| GET `/config` | `{environment: 'DEV'|'AU'|'PRO'|'LOCAL'|'OTRO', baseUrl, requestorEmail, credentialsConfigured, uploadsEnabled, gpsCodes: [], geographies: []}`. Con `uploadsEnabled=false` los envíos devuelven `status: 'DISABLED'`. Nada secreto; el panel muestra el entorno y propone el código GPS al dar de alta personas |
 
 ## Catálogos (selectores: cualquier usuario autenticado)
 
@@ -84,7 +84,7 @@ DayView  = {date, classification: 'WORKING'|'WEEKEND'|'NATIONAL_HOLIDAY'|'LOCAL_
 | Ruta | Respuesta |
 |---|---|
 | GET `/uploads/preview?date=` | `{submissionDate, dayCount, rowCount, excludedDays, problems, gaps: [{uid, date, lastSubmissionDate}], csv}` |
-| POST `/uploads/run` | `{status: 'SENT'|'SKIPPED_QUOTA'|'UNCHANGED'|'NOTHING_TO_SEND'|'FAILED'|'NOT_BUILT', submissionDate, apiCallId, dayCount, rowCount, excludedDays, problems, gaps, error}` |
+| POST `/uploads/run` | `{status: 'SENT'|'SKIPPED_QUOTA'|'UNCHANGED'|'NOTHING_TO_SEND'|'FAILED'|'NOT_BUILT'|'DISABLED', submissionDate, apiCallId, dayCount, rowCount, excludedDays, problems, gaps, error}` |
 | GET `/uploads/quota` | `{channel, day, callsToday, limit, lastOk}` |
 | GET `/uploads` | `[{id, channel, calledAt, submissionDate, ok, httpStatus, errorMessage, fileName, dayCount, rowCount}]` |
 | GET `/uploads/{id}/file` | `text/csv` |
@@ -147,7 +147,7 @@ Con `channel = 'LOG'` los avisos se registran pero no se envía correo (no hay S
 | Ruta | Respuesta |
 |---|---|
 | GET `/registrations` | `{persons: Person[] (con estado distinto de NOT_REQUIRED), quota: {callsToday, limit, lastOk}, lastUpload: ApiCall|null, pendingFeedbackDates: [date]}` |
-| POST `/registrations/run` | `{status: 'SENT'|'SKIPPED_QUOTA'|'NOTHING_TO_SEND'|'FAILED', submissionDate, count, apiCallId, error}` |
+| POST `/registrations/run` | `{status: 'SENT'|'SKIPPED_QUOTA'|'NOTHING_TO_SEND'|'FAILED'|'DISABLED', submissionDate, count, apiCallId, error}` |
 | POST `/registrations/feedback/sync` | `[{submissionDate, status: 'APPLIED'|'NOT_AVAILABLE_YET'|'FAILED', rowCount, registered, rejected, unmatched, error}]` |
 | POST `/registrations/persons/{id}/request` | `Person` (pasa a PENDING; 400 si está SENT o REGISTERED) |
 | POST `/registrations/persons/{id}/cancel` | `Person` (pasa a NOT_REQUIRED; 400 si está SENT) |

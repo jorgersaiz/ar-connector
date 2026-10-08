@@ -19,6 +19,7 @@ const STATUS_LABEL: Record<RegistrationUploadStatus, string> = {
   SKIPPED_QUOTA: 'Cuota agotada',
   NOTHING_TO_SEND: 'No hay altas pendientes',
   FAILED: 'Error',
+  DISABLED: 'Envíos desactivados por configuración',
 };
 
 @Component({

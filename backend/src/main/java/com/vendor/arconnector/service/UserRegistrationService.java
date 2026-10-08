@@ -5,6 +5,7 @@ import com.vendor.arconnector.catalog.SemicolonCsv;
 import com.vendor.arconnector.feedback.FeedbackLocator;
 import com.vendor.arconnector.client.ActivityReportClient;
 import com.vendor.arconnector.client.ActivityReportClientException;
+import com.vendor.arconnector.config.UploadGate;
 import com.vendor.arconnector.domain.*;
 import com.vendor.arconnector.registration.UserRegistrationFeedbackApplier;
 import com.vendor.arconnector.registration.UserRegistrationFeedbackParser;
@@ -40,7 +41,7 @@ public class UserRegistrationService {
 
     public record UploadResult(Status status, LocalDate submissionDate, int count, Long apiCallId, String error) {
         public enum Status {
-            SENT, SKIPPED_QUOTA, NOTHING_TO_SEND, FAILED
+            SENT, SKIPPED_QUOTA, NOTHING_TO_SEND, FAILED, DISABLED
         }
     }
 
@@ -56,16 +57,18 @@ public class UserRegistrationService {
     private final CallQuotaService quotaService;
     private final ApiCallRepository apiCallRepository;
     private final UserRegistrationFeedbackRepository feedbackRepository;
+    private final UploadGate uploadGate;
     private final Clock clock;
 
     public UserRegistrationService(PersonRepository personRepository, ActivityReportClient client, CallQuotaService quotaService,
                                    ApiCallRepository apiCallRepository, UserRegistrationFeedbackRepository feedbackRepository,
-                                   Clock clock) {
+                                   UploadGate uploadGate, Clock clock) {
         this.personRepository = personRepository;
         this.client = client;
         this.quotaService = quotaService;
         this.apiCallRepository = apiCallRepository;
         this.feedbackRepository = feedbackRepository;
+        this.uploadGate = uploadGate;
         this.clock = clock;
     }
 
@@ -78,6 +81,10 @@ public class UserRegistrationService {
                 .filter(Person::isActive).toList();
         if (pending.isEmpty()) {
             return new UploadResult(UploadResult.Status.NOTHING_TO_SEND, submissionDate, 0, null, null);
+        }
+        if (!uploadGate.isEnabled()) {
+            log.warn("Registro de usuarios omitido: {}", UploadGate.DISABLED_MESSAGE);
+            return new UploadResult(UploadResult.Status.DISABLED, submissionDate, pending.size(), null, UploadGate.DISABLED_MESSAGE);
         }
         CallQuotaService.QuotaStatus quota = quotaService.status(CHANNEL);
         if (!quota.canCall()) {

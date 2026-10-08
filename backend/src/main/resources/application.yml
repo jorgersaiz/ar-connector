@@ -56,6 +56,8 @@ activity-report:
   scope: ${AR_SCOPE:email}
   # Nombre del campo multipart con el fichero en las subidas.
   upload-field-name: ${AR_UPLOAD_FIELD_NAME:file}
+  # false = no se sube nada a Activity Report (ni el job ni "Enviar ahora"); catálogos y feedback sí.
+  uploads-enabled: ${AR_UPLOADS_ENABLED:true}
 
 # Primer usuario MANAGER del panel; solo se crea si la tabla app_user está vacía.
 auth:

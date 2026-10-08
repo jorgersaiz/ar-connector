@@ -303,18 +303,21 @@ export class DashboardComponent implements OnInit {
   }
 
   envLabel(a: AppConfig): string {
+    let label: string;
     switch (a.environment) {
-      case 'LOCAL': return 'Sin conexión con BBVA (ficheros de ejemplo)';
-      case 'PRO': return 'PRODUCCIÓN';
-      case 'OTRO': return 'Entorno: otro';
-      default: return 'Entorno de pruebas ' + a.environment;
+      case 'LOCAL': label = 'Sin conexión con BBVA (ficheros de ejemplo)'; break;
+      case 'PRO': label = 'PRODUCCIÓN'; break;
+      case 'OTRO': label = 'Entorno: otro'; break;
+      default: label = 'Entorno de pruebas ' + a.environment;
     }
+    return a.uploadsEnabled || a.environment === 'LOCAL' ? label : label + ' · solo lectura';
   }
 
   envTooltip(a: AppConfig): string {
     if (a.environment === 'LOCAL') return 'Los catálogos y los envíos se leen y escriben en la carpeta de ejemplos; no se habla con Activity Report';
     return a.baseUrl + (a.requestorEmail ? ' · Requestor ' + a.requestorEmail : '')
-        + (a.credentialsConfigured ? '' : ' · SIN CREDENCIAL: las llamadas fallarán');
+        + (a.credentialsConfigured ? '' : ' · SIN CREDENCIAL: las llamadas fallarán')
+        + (a.uploadsEnabled ? '' : ' · Envíos desactivados (AR_UPLOADS_ENABLED=false): se descargan catálogos y feedback pero no se sube nada');
   }
 
   loadNotifications(): void {

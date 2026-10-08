@@ -5,6 +5,7 @@ import com.vendor.arconnector.activities.Gap;
 import com.vendor.arconnector.activities.ValidationProblem;
 import com.vendor.arconnector.client.ActivityReportClient;
 import com.vendor.arconnector.client.ActivityReportClientException;
+import com.vendor.arconnector.config.UploadGate;
 import com.vendor.arconnector.domain.ApiCall;
 import com.vendor.arconnector.domain.CallChannel;
 import com.vendor.arconnector.repository.ActivityDayRepository;
@@ -46,7 +47,8 @@ class ActivitiesUploadServiceTest {
         quotaService = mock(CallQuotaService.class);
         apiCallRepository = mock(ApiCallRepository.class);
         activityDayRepository = mock(ActivityDayRepository.class);
-        service = new ActivitiesUploadService(snapshotService, client, quotaService, apiCallRepository, activityDayRepository, CLOCK);
+        service = new ActivitiesUploadService(snapshotService, client, quotaService, apiCallRepository, activityDayRepository,
+                new UploadGate(true), CLOCK);
 
         quota(0, 3, null);
         when(quotaService.callsOn(eq(CHANNEL), any())).thenReturn(List.of());
@@ -117,6 +119,19 @@ class ActivitiesUploadServiceTest {
         assertThat(saved.getValue().getContent()).isEqualTo(CONTENT);   // el fichero fallido también se conserva
 
         verify(activityDayRepository, never()).markSent(any(), any(), any());
+    }
+
+    @Test
+    void conLosEnviosDesactivadosNoSeLlamaALaApiNiSeGeneraElFichero() {
+        ActivitiesUploadService readOnly = new ActivitiesUploadService(snapshotService, client, quotaService,
+                apiCallRepository, activityDayRepository, new UploadGate(false), CLOCK);
+
+        UploadOutcome outcome = readOnly.uploadNow();
+
+        assertThat(outcome.status()).isEqualTo(UploadOutcome.Status.DISABLED);
+        assertThat(outcome.error()).contains("AR_UPLOADS_ENABLED");
+        verifyNoInteractions(client, snapshotService);
+        verify(apiCallRepository, never()).save(any());
     }
 
     @Test

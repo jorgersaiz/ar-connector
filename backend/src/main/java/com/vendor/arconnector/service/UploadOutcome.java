@@ -30,7 +30,9 @@ public record UploadOutcome(
         /** La API respondió error o no hubo conexión; la llamada cuenta para la cuota. */
         FAILED,
         /** No se pudo ni generar el fichero (p.ej. árbol de actividades vacío). */
-        NOT_BUILT
+        NOT_BUILT,
+        /** Los envíos están desactivados por configuración (AR_UPLOADS_ENABLED=false). */
+        DISABLED
     }
 
     public boolean sent() {

@@ -3,6 +3,7 @@ package com.vendor.arconnector.service;
 import com.vendor.arconnector.activities.ActivitiesFile;
 import com.vendor.arconnector.client.ActivityReportClient;
 import com.vendor.arconnector.client.ActivityReportClientException;
+import com.vendor.arconnector.config.UploadGate;
 import com.vendor.arconnector.domain.ApiCall;
 import com.vendor.arconnector.domain.CallChannel;
 import com.vendor.arconnector.repository.ActivityDayRepository;
@@ -42,6 +43,7 @@ public class ActivitiesUploadService {
     private final CallQuotaService quotaService;
     private final ApiCallRepository apiCallRepository;
     private final ActivityDayRepository activityDayRepository;
+    private final UploadGate uploadGate;
     private final Clock clock;
 
     public ActivitiesUploadService(PeriodSnapshotService snapshotService,
@@ -49,12 +51,14 @@ public class ActivitiesUploadService {
                                    CallQuotaService quotaService,
                                    ApiCallRepository apiCallRepository,
                                    ActivityDayRepository activityDayRepository,
+                                   UploadGate uploadGate,
                                    Clock clock) {
         this.snapshotService = snapshotService;
         this.client = client;
         this.quotaService = quotaService;
         this.apiCallRepository = apiCallRepository;
         this.activityDayRepository = activityDayRepository;
+        this.uploadGate = uploadGate;
         this.clock = clock;
     }
 
@@ -64,6 +68,11 @@ public class ActivitiesUploadService {
     }
 
     public UploadOutcome upload(LocalDate submissionDate) {
+        if (!uploadGate.isEnabled()) {
+            log.warn("Envío de imputaciones omitido: {}", UploadGate.DISABLED_MESSAGE);
+            return new UploadOutcome(UploadOutcome.Status.DISABLED, submissionDate, null, 0, 0, 0,
+                    List.of(), List.of(), UploadGate.DISABLED_MESSAGE);
+        }
         CallQuotaService.QuotaStatus quota = quotaService.status(CHANNEL);
         if (!quota.canCall()) {
             log.warn("Cuota diaria agotada para {}: {} llamadas hoy, límite {}", CHANNEL, quota.callsToday(), quota.limit());

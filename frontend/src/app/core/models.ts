@@ -18,6 +18,8 @@ export interface AppConfig {
   baseUrl: string;
   requestorEmail: string;
   credentialsConfigured: boolean;
+  /** false = modo solo lectura: no se sube nada a Activity Report */
+  uploadsEnabled: boolean;
   /** Códigos GPS de la empresa comunicados a BBVA */
   gpsCodes: string[];
   geographies: string[];
@@ -227,7 +229,7 @@ export interface UploadPreview {
   csv: string;
 }
 
-export type UploadStatus = 'SENT' | 'SKIPPED_QUOTA' | 'UNCHANGED' | 'NOTHING_TO_SEND' | 'FAILED' | 'NOT_BUILT';
+export type UploadStatus = 'SENT' | 'SKIPPED_QUOTA' | 'UNCHANGED' | 'NOTHING_TO_SEND' | 'FAILED' | 'NOT_BUILT' | 'DISABLED';
 
 export interface UploadRunResult {
   status: UploadStatus;
@@ -433,7 +435,7 @@ export interface RegistrationOverview {
   pendingFeedbackDates: string[];
 }
 
-export type RegistrationUploadStatus = 'SENT' | 'SKIPPED_QUOTA' | 'NOTHING_TO_SEND' | 'FAILED';
+export type RegistrationUploadStatus = 'SENT' | 'SKIPPED_QUOTA' | 'NOTHING_TO_SEND' | 'FAILED' | 'DISABLED';
 
 export interface RegistrationUploadResult {
   status: RegistrationUploadStatus;

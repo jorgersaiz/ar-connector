@@ -35,6 +35,8 @@ services:
       AR_DELEGATE_TO_REQUESTOR: ${AR_DELEGATE_TO_REQUESTOR:-false}
       AR_SCOPE: ${AR_SCOPE:-email}
       AR_UPLOAD_FIELD_NAME: ${AR_UPLOAD_FIELD_NAME:-file}
+      # false = solo lectura: descarga catálogos y feedback pero no sube nada
+      AR_UPLOADS_ENABLED: ${AR_UPLOADS_ENABLED:-true}
       # Código GPS de Arktic en BBVA y geografías de su gente
       AR_GPS_CODES: ${AR_GPS_CODES:-0000417143}
       AR_GEOGRAPHIES: ${AR_GEOGRAPHIES:-ES}

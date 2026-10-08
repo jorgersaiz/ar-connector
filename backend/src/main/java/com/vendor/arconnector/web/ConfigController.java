@@ -1,6 +1,7 @@
 package com.vendor.arconnector.web;
 
 import com.vendor.arconnector.config.ActivityReportProperties;
+import com.vendor.arconnector.config.UploadGate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,18 +23,20 @@ public class ConfigController {
      * @param geographies geografías comunicadas a BBVA
      */
     public record ConfigDto(String environment, String baseUrl, String requestorEmail, boolean credentialsConfigured,
-                            List<String> gpsCodes, List<String> geographies) {
+                            boolean uploadsEnabled, List<String> gpsCodes, List<String> geographies) {
     }
 
     private final ActivityReportProperties props;
+    private final UploadGate uploadGate;
 
-    public ConfigController(ActivityReportProperties props) {
+    public ConfigController(ActivityReportProperties props, UploadGate uploadGate) {
         this.props = props;
+        this.uploadGate = uploadGate;
     }
 
     @GetMapping
     public ConfigDto get() {
         return new ConfigDto(props.environment(), props.baseUrl(), props.requestorEmail(),
-                props.hasCredentials(), props.gpsCodeList(), props.geographyList());
+                props.hasCredentials(), uploadGate.isEnabled(), props.gpsCodeList(), props.geographyList());
     }
 }
