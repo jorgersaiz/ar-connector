@@ -7,7 +7,9 @@ services:
       POSTGRES_USER: ar_connector
       POSTGRES_PASSWORD: changeme
     ports:
-      - "5432:5432"
+      # Puerto del PC para conectarse a la base de datos desde fuera de Docker.
+      # Si otro proyecto ya usa el 5432, cámbialo con DB_HOST_PORT en el .env.
+      - "${DB_HOST_PORT:-5432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
