@@ -160,6 +160,18 @@ class CatalogParsersTest {
     }
 
     @Test
+    void unPaisSinMargenSeAceptaConElMargenVacio() {
+        // visto en el catálogo countries de DEV (noviembre 2026)
+        CsvTable table = SemicolonCsv.parse("country_code;ended_margin;onhold_margin;sda_country\nESP;1;2;SPAIN\nMEX;1;;MEXICO\n");
+
+        List<Country> countries = CatalogParsers.countries(table);
+
+        assertThat(countries).hasSize(2);
+        assertThat(countries.get(1).getEndedMargin()).isEqualTo(1);
+        assertThat(countries.get(1).getOnholdMargin()).isNull();
+    }
+
+    @Test
     void identificadorRepetidoDescartaElCatalogoEntero() {
         CsvTable table = SemicolonCsv.parse("country_code;ended_margin;onhold_margin\nESP;1;1\nESP;2;2\n");
 

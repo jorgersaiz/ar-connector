@@ -128,8 +128,9 @@ public final class CatalogParsers {
         return parseRows(table, row -> {
             Country c = new Country();
             c.setCountryCode(row.requiredText("country_code"));
-            c.setEndedMargin(row.requiredInt("ended_margin"));
-            c.setOnholdMargin(row.requiredInt("onhold_margin"));
+            // pueden venir vacíos (visto en DEV): sin margen no se aplica la regla correspondiente
+            c.setEndedMargin(row.optionalInt("ended_margin"));
+            c.setOnholdMargin(row.optionalInt("onhold_margin"));
             c.setSdaCountry(row.optionalText("sda_country"));
             c.setTimezone(row.optionalText("timezone"));
             return c;

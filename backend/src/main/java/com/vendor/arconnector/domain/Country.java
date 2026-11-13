@@ -19,13 +19,13 @@ public class Country {
     @Column(name = "country_code", length = 8)
     private String countryCode;
 
-    /** Qs de margen para proyectos Ended, contando desde el Q de end_date del SDA. */
-    @Column(name = "ended_margin", nullable = false)
-    private int endedMargin;
+    /** Qs de margen para proyectos Ended, contando desde el Q de end_date del SDA; null si el catálogo no lo informa. */
+    @Column(name = "ended_margin")
+    private Integer endedMargin;
 
-    /** Qs de margen para proyectos On hold, contando desde el Q de last_modified_status_date. */
-    @Column(name = "onhold_margin", nullable = false)
-    private int onholdMargin;
+    /** Qs de margen para proyectos On hold, contando desde el Q de last_modified_status_date; null si no se informa. */
+    @Column(name = "onhold_margin")
+    private Integer onholdMargin;
 
     /** Nombre del país tal como aparece en sda_project.country. */
     @Column(name = "sda_country", length = 128)

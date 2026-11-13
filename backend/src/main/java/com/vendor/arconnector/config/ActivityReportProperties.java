@@ -76,17 +76,32 @@ public record ActivityReportProperties(
         if (clientOrDefault() == ClientMode.FILESYSTEM) {
             return "LOCAL";
         }
-        String host = isBlank(baseUrl) ? "" : baseUrl.toLowerCase(Locale.ROOT);
-        if (host.contains("dev-bbva-gateway")) {
+        // BBVA ha cambiado los dominios (dev-bbva-gateway.appspot.com -> dev-gag.bbva.com):
+        // el entorno se deduce del prefijo del host, no del dominio completo.
+        String host = host(baseUrl);
+        boolean bbva = host.endsWith(".bbva.com") || host.contains("bbva-gateway");
+        if (!bbva) {
+            return "OTRO";
+        }
+        if (host.startsWith("dev-")) {
             return "DEV";
         }
-        if (host.contains("au-bbva-gateway")) {
+        if (host.startsWith("au-")) {
             return "AU";
         }
-        if (host.contains("bbva-gateway") || host.contains("gapis.bbva.com")) {
-            return "PRO";
+        return "PRO";
+    }
+
+    private static String host(String url) {
+        if (isBlank(url)) {
+            return "";
         }
-        return "OTRO";
+        try {
+            String h = java.net.URI.create(url.trim()).getHost();
+            return h == null ? "" : h.toLowerCase(Locale.ROOT);
+        } catch (IllegalArgumentException e) {
+            return "";
+        }
     }
 
     private static List<String> split(String csv) {

@@ -69,7 +69,8 @@ public final class CatalogRules {
     public record IssueInfo(String id, String sdaProjectId, String status, LocalDate disabledDate, String type) {
     }
 
-    public record CountryInfo(String sdaCountry, int endedMargin, int onholdMargin) {
+    /** Márgenes en trimestres; null si el catálogo no los informa (entonces la regla no se aplica). */
+    public record CountryInfo(String sdaCountry, Integer endedMargin, Integer onholdMargin) {
     }
 
     public record StatusChange(String issueKey, String status, LocalDate date) {
@@ -209,12 +210,13 @@ public final class CatalogRules {
 
         if (status.equals(STATUS_ENDED)) {
             Integer endQuarter = parseQuarter(sda.endQuarter());
-            if (endQuarter != null && country != null && dateQuarter > endQuarter + country.endedMargin()) {
+            if (endQuarter != null && country != null && country.endedMargin() != null
+                    && dateQuarter > endQuarter + country.endedMargin()) {
                 problems.add(problem(uid, date, "SDA_ENDED", "el proyecto SDA " + sda.id() + " está Ended (" + sda.endQuarter()
                         + ") y el margen de " + country.endedMargin() + " trimestre(s) de " + sda.country() + " ya pasó"));
             }
         } else if (status.equals(STATUS_ON_HOLD)) {
-            if (sda.lastModifiedStatusDate() != null && country != null
+            if (sda.lastModifiedStatusDate() != null && country != null && country.onholdMargin() != null
                     && dateQuarter > quarterIndex(sda.lastModifiedStatusDate()) + country.onholdMargin()) {
                 problems.add(problem(uid, date, "SDA_ON_HOLD", "el proyecto SDA " + sda.id() + " está On hold desde "
                         + sda.lastModifiedStatusDate() + " y el margen de " + country.onholdMargin() + " trimestre(s) de " + sda.country() + " ya pasó"));

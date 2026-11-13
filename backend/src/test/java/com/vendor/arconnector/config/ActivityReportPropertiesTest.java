@@ -16,6 +16,10 @@ class ActivityReportPropertiesTest {
         assertThat(props("https://au-bbva-gateway.appspot.com/timereport/api/vendors", null, "", "").environment()).isEqualTo("AU");
         assertThat(props("https://bbva-gateway.appspot.com/timereport/api/vendors", null, "", "").environment()).isEqualTo("PRO");
         assertThat(props("https://gapis.bbva.com/timereport/api/vendors", null, "", "").environment()).isEqualTo("PRO");
+        // dominios nuevos (noviembre 2026)
+        assertThat(props("https://dev-gag.bbva.com/timereport/api/vendors", null, "", "").environment()).isEqualTo("DEV");
+        assertThat(props("https://au-gag.bbva.com/timereport/api/vendors", null, "", "").environment()).isEqualTo("AU");
+        assertThat(props("https://gag.bbva.com/timereport/api/vendors", null, "", "").environment()).isEqualTo("PRO");
         assertThat(props("http://host.docker.internal:9911/timereport/api/vendors", null, "", "").environment()).isEqualTo("OTRO");
         assertThat(props("https://bbva-gateway.appspot.com/timereport/api/vendors", ActivityReportProperties.ClientMode.FILESYSTEM, "", "").environment()).isEqualTo("LOCAL");
     }

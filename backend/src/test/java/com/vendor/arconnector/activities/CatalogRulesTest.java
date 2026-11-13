@@ -36,7 +36,8 @@ class CatalogRulesTest {
                     new SdaInfo("SDA-ENDED", "Ended", null, "Spain", "2Q 2026", d("2026-06-30"), false),     // margen ES 1Q -> hasta 3Q 2026
                     new SdaInfo("SDA-HOLD", "On hold", null, "Mexico", "1Q 2027", d("2026-08-01"), false),    // margen MX 1Q -> hasta 4Q 2026
                     new SdaInfo("SDA-OFF", "Flow", d("2026-03-31"), "Spain", "4Q 2026", null, false),
-                    new SdaInfo("SDA-NOCOUNTRY", "Ended", null, "Atlantis", "1Q 2020", null, false)),
+                    new SdaInfo("SDA-NOCOUNTRY", "Ended", null, "Atlantis", "1Q 2020", null, false),
+                    new SdaInfo("SDA-HOLD-NOMARGIN", "On hold", null, "Peru", "1Q 2027", d("2025-01-15"), false)),
             List.of(
                     new IssueInfo("ETR-NEW", "SDA-FLOW", "New", null, "feature"),
                     new IssueInfo("ETR-PROG", "SDA-FLOW", "In progress", null, "task"),
@@ -54,7 +55,8 @@ class CatalogRulesTest {
                     new IssueInfo("ETR-CHANGED", "SDA-FLOW", "In Progress", null, "Feature")), // cambió de SDA el 22/09
             List.of(
                     new CountryInfo("Spain", 1, 2),
-                    new CountryInfo("Mexico", 0, 1)),
+                    new CountryInfo("Mexico", 0, 1),
+                    new CountryInfo("Peru", 1, null)),   // margen On hold vacío, como en el countries de DEV
             List.of(
                     new StatusChange("ETR-DEPLOYED", "Deployed", d("2026-08-21")),
                     new StatusChange("ETR-DISCARDED", "In progress", d("2026-08-01")),
@@ -107,6 +109,12 @@ class CatalogRulesTest {
     @Test
     void sinDatosDePaisNoSeAplicaElMargen() {
         assertThat(check("2026-09-10", LineSubmission.sda("x", "SDA-NOCOUNTRY", 60), SDA_ONLY, "01")).isEmpty();
+    }
+
+    @Test
+    void sinMargenInformadoParaElPaisNoSeBloquea() {
+        // On hold desde 1Q 2025: con cualquier margen ya habría pasado, pero el país no lo informa
+        assertThat(check("2026-09-10", LineSubmission.sda("x", "SDA-HOLD-NOMARGIN", 60), SDA_ONLY, "01")).isEmpty();
     }
 
     @Test

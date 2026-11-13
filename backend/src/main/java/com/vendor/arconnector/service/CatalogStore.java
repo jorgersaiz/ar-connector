@@ -130,8 +130,8 @@ public class CatalogStore {
                     insert into country (country_code, ended_margin, onhold_margin, sda_country, timezone, last_synced_at) values (?,?,?,?,?,?)
                     """, CatalogParsers.countries(table), (ps, c) -> {
                 ps.setString(1, c.getCountryCode());
-                ps.setInt(2, c.getEndedMargin());
-                ps.setInt(3, c.getOnholdMargin());
+                ps.setObject(2, c.getEndedMargin(), java.sql.Types.INTEGER);
+                ps.setObject(3, c.getOnholdMargin(), java.sql.Types.INTEGER);
                 ps.setString(4, c.getSdaCountry());
                 ps.setString(5, c.getTimezone());
                 ps.setTimestamp(6, now);
