@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   AppConfig, CatalogStatus, CatalogSyncResult, Dashboard, Day, DayUpsert, FeedbackFile, FeedbackRow, FeedbackSyncResult,
-  Holiday, HolidayCreate, ImportResult, JiraIssue, Me, MonthView, NonSdaProject, Notification, NotificationConfig,
+  Holiday, HolidayCreate, ImportResult, JiraIssue, JobStatus, Me, MonthView, NonSdaProject, Notification, NotificationConfig,
   NotificationRunResult, Person, PersonInput, RegistrationFeedbackResult, RegistrationOverview, RegistrationUploadResult,
   SdaProject, TaskType, Template, TemplateCreate, UploadPreview, UploadQuota, UploadRecord, UploadRunResult, User,
   UserCreate, UserUpdate,
@@ -35,6 +35,9 @@ export class ApiService {
   }
   config(): Observable<AppConfig> {
     return this.http.get<AppConfig>(`${this.base}/config`);
+  }
+  jobs(): Observable<JobStatus[]> {
+    return this.http.get<JobStatus[]>(`${this.base}/jobs`);
   }
 
   // ---- Usuarios ----

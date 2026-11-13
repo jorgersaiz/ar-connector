@@ -75,6 +75,12 @@ jobs:
     cron: "0 30 4,10 * * *"      # el feedback está disponible a partir de las 3:00; segundo intento a media mañana
   notifications:
     cron: "0 0 9 * * *"          # avisos de huecos y rechazos, tras catálogos y feedback
+  # Recupera las ejecuciones que no se hicieron a su hora (equipo apagado o suspendido):
+  # un minuto después de arrancar y luego cada 10 minutos.
+  catch-up:
+    enabled: ${JOBS_CATCH_UP_ENABLED:true}
+    initial-delay: PT1M
+    interval: PT10M
 
 logging:
   level:

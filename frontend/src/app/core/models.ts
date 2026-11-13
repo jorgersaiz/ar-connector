@@ -25,6 +25,20 @@ export interface AppConfig {
   geographies: string[];
 }
 
+/** Estado de un proceso programado (GET /jobs). */
+export interface JobStatus {
+  name: string;
+  description: string;
+  cron: string;
+  lastRunAt: string | null;
+  /** PROGRAMADO (a su hora) o RECUPERADO (más tarde, porque el equipo estaba apagado) */
+  lastTrigger: 'PROGRAMADO' | 'RECUPERADO' | null;
+  lastScheduledFor: string | null;
+  nextRunAt: string | null;
+  /** Se saltó su última hora y se lanzará en los próximos minutos */
+  pending: boolean;
+}
+
 export interface User {
   id: number;
   email: string;

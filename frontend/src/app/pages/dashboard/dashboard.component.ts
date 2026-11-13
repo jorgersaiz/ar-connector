@@ -12,7 +12,7 @@ import { ApiService } from '../../core/api.service';
 import { NotifyService } from '../../core/notify.service';
 import { fromIso } from '../../core/dates';
 import {
-  AppConfig, Dashboard, DashboardPerson, Notification, NotificationConfig, NotificationKind, NotificationRunResult,
+  AppConfig, Dashboard, DashboardPerson, JobStatus, Notification, NotificationConfig, NotificationKind, NotificationRunResult,
 } from '../../core/models';
 import { NotificationDialogComponent, notificationKindLabel } from './notification-dialog.component';
 
@@ -215,6 +215,38 @@ const NOTIFICATIONS_LIMIT = 50;
         <div class="muted" style="padding: 16px 0">No se pudo cargar la situación del periodo.</div>
       }
 
+      <!-- Procesos automáticos -->
+      <div class="page-header" style="margin-top: 24px">
+        <h3 style="margin: 0">Procesos automáticos</h3>
+        <span class="spacer"></span>
+        <span class="muted small">Si el equipo estaba apagado a su hora, se ejecutan al encenderlo</span>
+      </div>
+      <div class="table-wrap">
+        <table mat-table [dataSource]="jobs()">
+          <ng-container matColumnDef="description"><th mat-header-cell *matHeaderCellDef>Proceso</th><td mat-cell *matCellDef="let j">{{ j.description }}</td></ng-container>
+          <ng-container matColumnDef="lastRunAt">
+            <th mat-header-cell *matHeaderCellDef>Última ejecución</th>
+            <td mat-cell *matCellDef="let j" class="nowrap">
+              @if (j.lastRunAt) {
+                {{ j.lastRunAt | date: 'dd/MM HH:mm' }}
+                @if (j.lastTrigger === 'RECUPERADO') {
+                  <span class="chip-day manual" [matTooltip]="'Le tocaba el ' + (j.lastScheduledFor | date: 'dd/MM HH:mm') + '; el equipo estaba apagado y se ejecutó al encenderlo'">recuperada</span>
+                }
+              } @else { <span class="muted">nunca</span> }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="nextRunAt">
+            <th mat-header-cell *matHeaderCellDef>Próxima</th>
+            <td mat-cell *matCellDef="let j" class="nowrap">
+              @if (j.pending) { <span class="warn-text" matTooltip="Se saltó su última hora; se ejecutará en los próximos minutos">pendiente de recuperar</span> }
+              @else { {{ j.nextRunAt | date: 'dd/MM HH:mm' }} }
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="jobColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: jobColumns"></tr>
+        </table>
+      </div>
+
       <!-- Avisos enviados -->
       <div class="page-header" style="margin-top: 24px">
         <h3 style="margin: 0">Avisos enviados</h3>
@@ -271,6 +303,8 @@ export class DashboardComponent implements OnInit {
   readonly notificationsLimit = NOTIFICATIONS_LIMIT;
   readonly personColumns = ['displayName', 'uid', 'gaps', 'nextGapDeadline', 'rejections', 'excluded', 'hasTemplate'];
   readonly notificationColumns = ['sentAt', 'kind', 'channel', 'recipientEmail', 'personDisplayName', 'subject'];
+  readonly jobColumns = ['description', 'lastRunAt', 'nextRunAt'];
+  readonly jobs = signal<JobStatus[]>([]);
 
   readonly dashboard = signal<Dashboard | null>(null);
   readonly config = signal<NotificationConfig | null>(null);
@@ -290,6 +324,7 @@ export class DashboardComponent implements OnInit {
   }
 
   reload(): void {
+    this.api.jobs().subscribe({ next: (j) => this.jobs.set(j), error: () => this.jobs.set([]) });
     this.loading.set(true);
     this.api.dashboard().subscribe({
       next: (d) => { this.dashboard.set(d); this.loading.set(false); },

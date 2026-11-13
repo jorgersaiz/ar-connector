@@ -46,10 +46,14 @@ Del lado de Arktic:
    plantillas con códigos de actividad reales.
 5. Dónde se guardan las copias de seguridad (`BACKUP_DIR`): hoy en el mismo
    disco que la base de datos.
-6. Si el PC del piloto se queda encendido: los procesos automáticos van a
-   horas fijas (catálogos 4:00, envíos 13:00/18:00/21:00, feedback
-   4:30/10:30). Alternativa: que el conector recupere al arrancar lo que no
-   hizo.
+
+Resuelto el 13/11/2026: si el PC está apagado a la hora de un proceso
+(catálogos 4:00, feedback 4:30/10:30, avisos 9:00, envíos 13:00/18:00/21:00),
+el conector lo ejecuta al encenderse (`CatchUpJob`). Aun así, el día de corte
+(19 y 4) conviene que el PC esté encendido en algún momento antes de las 24:00.
+
+Siguiente mejora propuesta: alta masiva de personas desde CSV (hoy se dan de
+alta una a una en el panel).
 
 Pospuesto: login con Entra ID, SMTP para los avisos e infraestructura en
 Azure (dependen de decisiones de infraestructura de Arktic).
