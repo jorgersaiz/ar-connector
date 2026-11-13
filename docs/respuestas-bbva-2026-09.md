@@ -123,15 +123,28 @@ Detalles del script de ejemplo:
 
 Probado de punta a punta en Docker contra un Google y un gateway simulados:
 petición de token, las tres cabeceras en descargas y subidas, y subida
-`multipart/form-data`. Falta la prueba contra BBVA.
+`multipart/form-data`.
+
+## Pruebas contra DEV
+
+| Fecha | Cambio | Respuesta de BBVA |
+|---|---|---|
+| 08/10/2026 | Primera llamada, Requestor `@bbva.com` | 401 "... is not a valid user": en DEV el Requestor tiene que ser `@dev.bbva.com` |
+| 03/11/2026 | Requestor `@dev.bbva.com` | 401 "The requestor application cannot be retrieved" en los 8 catálogos (igual con `X-BBVA-AppId` = `client_id` o = `project_id`): faltaba configuración en BBVA |
+| 13/11/2026 | BBVA cambia el dominio de DEV a `dev-gag.bbva.com` | **`countries` se descarga** (5 países). Los otros 7 catálogos: 403 "You don't have permissions to invoke this service" |
+
+El `countries` de DEV trae un país con `onhold_margin` vacío; el conector lo
+acepta desde la migración V11 (sin margen, la regla correspondiente no se
+aplica). Los datos de DEV son de prueba: no incluye España.
 
 ## Pendiente de BBVA
 
-1. Las credenciales (una por entorno), que BBVA envía por Google Drive a los
-   correos Requestor.
-2. Cuentas `@dev.bbva.com` para probar en DEV: las pide Arktic desde el
-   ticket de Helix.
-3. Geografías registradas para Arktic (se asume `ES`).
+1. Permisos en DEV para los otros 7 catálogos (y para subir ficheros y pedir
+   feedback): hoy responden 403.
+2. Si AU y PRO también cambian de dominio (como DEV a `dev-gag.bbva.com`).
+3. Las credenciales de AU y PRO (una por entorno).
+4. Confirmación de que tienen los datos de Arktic: GPS `0000417143`,
+   Requestor y geografía `ES`.
 4. Fecha a partir de la cual la API es la única fuente de imputación para
    Arktic (convivencia con la imputación manual).
 5. Qué quiso decir "si están en zip, no hay nodos bloqueados". El lector
