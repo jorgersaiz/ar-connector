@@ -2,6 +2,10 @@ package com.vendor.arconnector.catalog;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,7 +42,25 @@ public final class SemicolonCsv {
     }
 
     public static CsvTable parse(byte[] content) {
-        return parse(new String(decompressIfNeeded(content), StandardCharsets.UTF_8));
+        return parse(decodeText(decompressIfNeeded(content)));
+    }
+
+    /**
+     * UTF-8 si el contenido es UTF-8 válido; si no, Windows-1252. Los ficheros
+     * de BBVA son UTF-8, pero un CSV guardado con el Excel en español ("CSV
+     * delimitado por punto y coma") usa Windows-1252, y con UTF-8 una tilde
+     * ("José") se convertiría en un carácter ilegible.
+     */
+    static String decodeText(byte[] bytes) {
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes))
+                    .toString();
+        } catch (CharacterCodingException e) {
+            return new String(bytes, Charset.forName("windows-1252"));
+        }
     }
 
     public static CsvTable parse(String text) {

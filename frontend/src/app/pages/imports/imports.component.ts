@@ -5,7 +5,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTabsModule } from '@angular/material/tabs';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../core/api.service';
+import { PersonImportComponent } from './person-import.component';
 import { ImportResult } from '../../core/models';
 import { errorLines } from '../../core/errors';
 
@@ -19,15 +22,16 @@ interface ColumnHelp {
 @Component({
   selector: 'app-imports',
   standalone: true,
-  imports: [MatCardModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, MatTooltipModule],
+  imports: [MatCardModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, MatTooltipModule, MatTabsModule,
+    PersonImportComponent],
   template: `
     <div class="page">
       <div class="page-header">
-        <h1>Importar días desde CSV</h1>
-        <span class="spacer"></span>
-        <button mat-stroked-button (click)="downloadTemplate()"><mat-icon>download</mat-icon> Descargar plantilla</button>
+        <h1>Importar desde CSV</h1>
       </div>
 
+      <mat-tab-group [selectedIndex]="tabIndex" (selectedIndexChange)="onTab($event)" animationDuration="0ms">
+      <mat-tab label="Días (imputaciones)">
       <mat-card class="card">
         <mat-card-content>
           <div class="toolbar-row">
@@ -35,6 +39,7 @@ interface ColumnHelp {
             <button mat-stroked-button (click)="fileInput.click()" [disabled]="busy()"><mat-icon>attach_file</mat-icon> Elegir fichero</button>
             <span class="muted">{{ file()?.name ?? 'Ningún fichero seleccionado' }}</span>
             <span class="spacer"></span>
+            <button mat-stroked-button (click)="downloadTemplate()"><mat-icon>download</mat-icon> Descargar plantilla</button>
             <button mat-flat-button color="primary" (click)="upload()" [disabled]="!file() || busy()"><mat-icon>upload</mat-icon> Importar</button>
           </div>
           @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
@@ -114,9 +119,15 @@ interface ColumnHelp {
             <li>Los <b>códigos de actividad, SDA e issue</b> son los del catálogo de BBVA. Los ves en los selectores al editar un día en el mes de cualquier persona.</li>
             <li>Los <b>fines de semana y festivos nacionales</b> no se envían a BBVA aunque vengan en el fichero.</li>
             <li>Un día cuyo <b>periodo ya cerró</b> en BBVA (después del 19 para la 1ª quincena, del 4 del mes siguiente para la 2ª) no se puede importar.</li>
+            <li>Las fechas pueden ir como <code>2026-09-15</code> o como <code>15/09/2026</code> (lo que deja Excel al guardar).</li>
           </ul>
         </mat-card-content>
       </mat-card>
+      </mat-tab>
+      <mat-tab label="Personas (altas)">
+        <app-person-import />
+      </mat-tab>
+      </mat-tab-group>
     </div>
   `,
   styles: [`
@@ -134,6 +145,14 @@ interface ColumnHelp {
 })
 export class ImportsComponent {
   private readonly api = inject(ApiService);
+  private readonly router = inject(Router);
+
+  /** Pestaña inicial: /importar?tab=personas abre la de personas. */
+  readonly tabIndex = inject(ActivatedRoute).snapshot.queryParamMap.get('tab') === 'personas' ? 1 : 0;
+
+  onTab(index: number): void {
+    this.router.navigate([], { queryParams: { tab: index === 1 ? 'personas' : null }, replaceUrl: true });
+  }
 
   readonly header = 'uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note';
   readonly caseSplit = [

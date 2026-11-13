@@ -93,6 +93,33 @@ public class Person {
         return uid == null ? null : uid.trim().toUpperCase(java.util.Locale.ROOT);
     }
 
+    /**
+     * Pide (true) o retira (false) el alta en Activity Report. Solo mientras el
+     * conector no la haya enviado (NOT_REQUIRED, PENDING o REJECTED): SENT y
+     * REGISTERED los pone el conector y no se tocan.
+     *
+     * @return true si el estado ha cambiado
+     */
+    public boolean requestRegistration(boolean requested) {
+        RegistrationStatus current = registrationStatus;
+        boolean editable = current == null || current == RegistrationStatus.NOT_REQUIRED
+                || current == RegistrationStatus.PENDING || current == RegistrationStatus.REJECTED;
+        RegistrationStatus target = requested ? RegistrationStatus.PENDING : RegistrationStatus.NOT_REQUIRED;
+        if (!editable || current == target) {
+            return false;
+        }
+        registrationStatus = target;
+        if (requested) {
+            registrationReason = null;
+        }
+        return true;
+    }
+
+    /** true si el conector ya ha enviado el alta (o BBVA la ha confirmado) y no se puede cambiar. */
+    public boolean registrationLocked() {
+        return registrationStatus == RegistrationStatus.SENT || registrationStatus == RegistrationStatus.REGISTERED;
+    }
+
     /** true si la persona está en perímetro (activa y dentro de su rango de fechas) ese día. */
     public boolean isInPerimeterOn(LocalDate date) {
         return active

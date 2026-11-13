@@ -6,7 +6,7 @@ import com.vendor.arconnector.catalog.SemicolonCsv;
 import com.vendor.arconnector.domain.ActivityDay;
 import com.vendor.arconnector.domain.DayOrigin;
 import com.vendor.arconnector.domain.Person;
-import com.vendor.arconnector.imports.DayImportException;
+import com.vendor.arconnector.imports.CsvImportException;
 import com.vendor.arconnector.imports.DayImportParser;
 import com.vendor.arconnector.imports.ImportedDay;
 import com.vendor.arconnector.repository.ActivityDayRepository;
@@ -54,10 +54,10 @@ public class DayImportService {
         try {
             days = DayImportParser.parse(SemicolonCsv.parse(content));
         } catch (CatalogParseException e) {
-            throw new DayImportException(e.getErrors());
+            throw new CsvImportException(e.getErrors());
         }
         if (days.isEmpty()) {
-            throw new DayImportException(List.of("el fichero no contiene ningún día"));
+            throw new CsvImportException(List.of("el fichero no contiene ningún día"));
         }
 
         Set<String> uids = days.stream().map(ImportedDay::uid).collect(Collectors.toCollection(LinkedHashSet::new));
@@ -65,7 +65,7 @@ public class DayImportService {
                 .collect(Collectors.toMap(p -> p.getUid().toUpperCase(Locale.ROOT), Function.identity()));
         List<String> unknown = uids.stream().filter(u -> !personByUid.containsKey(u)).toList();
         if (!unknown.isEmpty()) {
-            throw new DayImportException(List.of("uid(s) desconocidos: " + String.join(", ", unknown)));
+            throw new CsvImportException(List.of("uid(s) desconocidos: " + String.join(", ", unknown)));
         }
 
         validationService.validate(days.stream().map(ImportedDay::toSubmission).toList());

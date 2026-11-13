@@ -45,7 +45,7 @@ class DayImportParserTest {
     @Test
     void cabeceraIncompletaSeRechazaConLaCabeceraEsperada() {
         assertThatThrownBy(() -> DayImportParser.parse(SemicolonCsv.parse("uid;date;hours\nXE1;2026-09-15;8\n")))
-                .isInstanceOf(DayImportException.class)
+                .isInstanceOf(CsvImportException.class)
                 .hasMessageContaining("task_type_code")
                 .hasMessageContaining("Esperada");
     }
@@ -58,7 +58,7 @@ class DayImportParserTest {
                 + "XE1;2026-09-16;NON_WORKING;03.01;;;;60;\n"         // no imputable con actividad
                 + "XE1;2026-09-17;;03.01;;;;ocho;\n"                  // minutos
                 + "XE1;2026-09-18;;;;;;60;\n")))                      // sin actividad
-                .isInstanceOf(DayImportException.class)
+                .isInstanceOf(CsvImportException.class)
                 .hasMessageContaining("5 error(es)")
                 .hasMessageContaining("línea 2")
                 .hasMessageContaining("línea 6");
@@ -69,7 +69,7 @@ class DayImportParserTest {
         assertThatThrownBy(() -> DayImportParser.parse(SemicolonCsv.parse(HEADER
                 + "XE1;2026-09-15;;03.01;;;;60;\n"
                 + "XE1;2026-09-15;NON_WORKING;;;;;;\n")))
-                .isInstanceOf(DayImportException.class)
+                .isInstanceOf(CsvImportException.class)
                 .hasMessageContaining("WORKED y como NON_WORKING");
     }
 }

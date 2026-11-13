@@ -37,7 +37,7 @@ public final class DayImportParser {
     public static List<ImportedDay> parse(CsvTable table) {
         List<String> missing = table.missingColumns(REQUIRED_COLUMNS);
         if (!missing.isEmpty()) {
-            throw new DayImportException(List.of("faltan columnas en la cabecera: " + String.join(", ", missing)
+            throw new CsvImportException(List.of("faltan columnas en la cabecera: " + String.join(", ", missing)
                     + ". Esperada: uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note"));
         }
 
@@ -47,7 +47,7 @@ public final class DayImportParser {
         for (CsvRow row : table.rows()) {
             try {
                 String uid = row.requiredText("uid").toUpperCase(Locale.ROOT);
-                LocalDate date = row.requiredDate("date");
+                LocalDate date = row.requiredUserDate("date");
                 DayKind kind = parseKind(row);
                 String key = uid + "|" + date;
 
@@ -77,7 +77,7 @@ public final class DayImportParser {
         }
 
         if (!errors.isEmpty()) {
-            throw new DayImportException(errors);
+            throw new CsvImportException(errors);
         }
         return days.values().stream().map(ImportedDayBuilder::build).toList();
     }

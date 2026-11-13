@@ -2,7 +2,7 @@ package com.vendor.arconnector.web;
 
 import com.vendor.arconnector.activities.ValidationProblem;
 import com.vendor.arconnector.catalog.CatalogParseException;
-import com.vendor.arconnector.imports.DayImportException;
+import com.vendor.arconnector.imports.CsvImportException;
 import com.vendor.arconnector.service.DayValidationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -25,8 +25,8 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(new ErrorResponse("Los datos no pasan las validaciones de Activity Report", List.of(), e.getProblems()));
     }
 
-    @ExceptionHandler(DayImportException.class)
-    public ResponseEntity<ErrorResponse> importError(DayImportException e) {
+    @ExceptionHandler(CsvImportException.class)
+    public ResponseEntity<ErrorResponse> importError(CsvImportException e) {
         return ResponseEntity.badRequest().body(new ErrorResponse("El CSV no se ha podido importar", e.getErrors(), List.of()));
     }
 

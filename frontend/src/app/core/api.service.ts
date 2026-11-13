@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import {
   AppConfig, CatalogStatus, CatalogSyncResult, Dashboard, Day, DayUpsert, FeedbackFile, FeedbackRow, FeedbackSyncResult,
   Holiday, HolidayCreate, ImportResult, JiraIssue, JobStatus, Me, MonthView, NonSdaProject, Notification, NotificationConfig,
-  NotificationRunResult, Person, PersonInput, RegistrationFeedbackResult, RegistrationOverview, RegistrationUploadResult,
+  NotificationRunResult, Person, PersonImportResult, PersonInput, RegistrationFeedbackResult, RegistrationOverview, RegistrationUploadResult,
   SdaProject, TaskType, Template, TemplateCreate, UploadPreview, UploadQuota, UploadRecord, UploadRunResult, User,
   UserCreate, UserUpdate,
 } from './models';
@@ -195,5 +195,11 @@ export class ApiService {
     const form = new FormData();
     form.append('file', file, file.name);
     return this.http.post<ImportResult>(`${this.base}/imports/days`, form);
+  }
+  /** Con dryRun=true no guarda nada: devuelve lo que se crearía o cambiaría. */
+  importPersons(file: File, dryRun: boolean): Observable<PersonImportResult> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.http.post<PersonImportResult>(`${this.base}/imports/persons`, form, { params: this.params({ dryRun }) });
   }
 }

@@ -335,6 +335,18 @@ export interface ImportResult {
   persons: number;
 }
 
+export type PersonImportAction = 'CREAR' | 'ACTUALIZAR' | 'SIN_CAMBIOS';
+
+/** Resultado de POST /imports/persons (con dryRun=true, lo que se haría sin guardar nada). */
+export interface PersonImportResult {
+  dryRun: boolean;
+  created: number;
+  updated: number;
+  unchanged: number;
+  registrationsRequested: number;
+  rows: { line: number; uid: string; displayName: string; action: PersonImportAction; changes: string[] }[];
+}
+
 export interface ApiError {
   message?: string;
   errors?: string[];

@@ -31,6 +31,7 @@ import { PersonDialogComponent, PersonDialogData } from './person-dialog.compone
       <div class="page-header">
         <h1>Personas</h1>
         <span class="spacer"></span>
+        <a mat-stroked-button routerLink="/importar" [queryParams]="{ tab: 'personas' }"><mat-icon>upload_file</mat-icon> Importar CSV</a>
         <button mat-flat-button color="primary" (click)="openDialog(null)"><mat-icon>person_add</mat-icon> Nueva persona</button>
       </div>
 

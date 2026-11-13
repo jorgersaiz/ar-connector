@@ -107,6 +107,10 @@ POST `/holidays` y DELETE `/holidays/{id}` (MANAGER).
 ## Importación CSV (MANAGER)
 
 POST `/imports/days`, multipart con el campo `file` → `{daysCreated, daysReplaced, lines, persons}`.
+
+POST `/imports/persons?dryRun=`, multipart con el campo `file` →
+`{dryRun, created, updated, unchanged, registrationsRequested, rows: [{line, uid, displayName, action: 'CREAR'|'ACTUALIZAR'|'SIN_CAMBIOS', changes: [string]}]}`.
+Con `dryRun=true` no guarda nada. Si el fichero tiene errores: 400 con `errors` (todos, con su número de línea).
 Formato: `uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note`.
 
 ## Situación del periodo (MANAGER)

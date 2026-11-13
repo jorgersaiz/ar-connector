@@ -42,14 +42,7 @@ public record PersonDto(
         }
         // Solo se puede pedir el alta (PENDING) o desistir (NOT_REQUIRED); SENT/REGISTERED los pone el conector
         if (registrationStatus == RegistrationStatus.PENDING || registrationStatus == RegistrationStatus.NOT_REQUIRED) {
-            RegistrationStatus current = p.getRegistrationStatus();
-            if (current == null || current == RegistrationStatus.NOT_REQUIRED || current == RegistrationStatus.PENDING
-                    || current == RegistrationStatus.REJECTED) {
-                p.setRegistrationStatus(registrationStatus);
-                if (registrationStatus == RegistrationStatus.PENDING) {
-                    p.setRegistrationReason(null);
-                }
-            }
+            p.requestRegistration(registrationStatus == RegistrationStatus.PENDING);
         }
     }
 }

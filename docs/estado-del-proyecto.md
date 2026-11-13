@@ -52,8 +52,12 @@ Resuelto el 13/11/2026: si el PC está apagado a la hora de un proceso
 el conector lo ejecuta al encenderse (`CatchUpJob`). Aun así, el día de corte
 (19 y 4) conviene que el PC esté encendido en algún momento antes de las 24:00.
 
-Siguiente mejora propuesta: alta masiva de personas desde CSV (hoy se dan de
-alta una a una en el panel).
+Resuelto el 13/11/2026: alta masiva de personas desde CSV (Importar CSV →
+pestaña Personas, o el botón "Importar CSV" de Personas), con un paso de
+"Comprobar" que enseña qué se va a crear o cambiar antes de guardar.
+
+Para el piloto: con la lista de personas de Arktic, importarlas y crear a
+cada una su plantilla por defecto (hoy, una a una en su ficha).
 
 Pospuesto: login con Entra ID, SMTP para los avisos e infraestructura en
 Azure (dependen de decisiones de infraestructura de Arktic).

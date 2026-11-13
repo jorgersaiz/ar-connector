@@ -70,6 +70,34 @@ public final class CsvRow {
         return d;
     }
 
+    /**
+     * Fecha YYYY-MM-DD o DD/MM/YYYY, o null si viene vacía. Para los CSV que
+     * prepara una persona: el Excel en español guarda las fechas como 01/11/2026.
+     * Los catálogos de BBVA siguen usando {@link #optionalDate}.
+     */
+    public LocalDate optionalUserDate(String column) {
+        String v = text(column);
+        if (v.isEmpty()) {
+            return null;
+        }
+        try {
+            return v.contains("/") ? LocalDate.parse(v, DMY) : LocalDate.parse(v);
+        } catch (DateTimeParseException e) {
+            throw error("la columna '" + column + "' no es una fecha válida (2026-11-01 o 01/11/2026): '" + v + "'");
+        }
+    }
+
+    public LocalDate requiredUserDate(String column) {
+        LocalDate d = optionalUserDate(column);
+        if (d == null) {
+            throw error("la columna '" + column + "' es obligatoria y viene vacía");
+        }
+        return d;
+    }
+
+    private static final java.time.format.DateTimeFormatter DMY = java.time.format.DateTimeFormatter.ofPattern("d/M/uuuu")
+            .withResolverStyle(java.time.format.ResolverStyle.STRICT);
+
     /** true / false (insensible a mayúsculas); vacío se interpreta como false. */
     public boolean bool(String column) {
         String v = text(column).toLowerCase(Locale.ROOT);

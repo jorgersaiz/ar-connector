@@ -51,6 +51,8 @@ Implementado y cubierto con tests (sin necesidad de BD ni credenciales):
 | `/api/persons` | alta, baja y edición de personas; plantillas por defecto (`/{id}/templates`); días explícitos (`/{id}/days/{fecha}`), validados contra el árbol al guardarlos |
 | `/api/holidays` | festivos por geografía y año |
 | `POST /api/imports/days` | CSV `uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note`; todo o nada; cada día sustituye al que hubiera |
+| `POST /api/imports/persons` | alta masiva de personas: CSV `uid;display_name;email;start_date;end_date;geography;gps_code;needs_registration`. Crea las nuevas y actualiza las existentes (mismo uid; las columnas opcionales vacías conservan lo que hubiera). GPS y geografía por defecto los de la empresa. `dryRun=true` devuelve persona a persona lo que haría sin guardar nada. Todo o nada |
+| CSV preparados en Excel | las importaciones aceptan ficheros en Windows-1252 (el "CSV delimitado por punto y coma" del Excel español) y fechas `01/11/2026` además de `2026-11-01` |
 | Login provisional (`SecurityConfig`, `/api/auth`) | sesión con cookie, usuarios en `app_user` con BCrypt, roles MANAGER / CONSULTANT; un consultor solo ve y edita su propia persona. Se sustituirá por Entra ID |
 | `GET /api/persons/{id}/month` | vista de mes para el panel: qué se enviaría cada día (explícito, plantilla, festivo local, nada), huecos, días bloqueados por corte y resultado del último feedback |
 | Panel Angular (`frontend/`) | login, "Mi mes" para el consultor, y para el manager personas, plantillas, envíos, rechazos, importación CSV, catálogos, festivos y usuarios. Contrato en `docs/panel-api.md` |
