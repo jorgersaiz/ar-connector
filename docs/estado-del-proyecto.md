@@ -25,8 +25,9 @@ Compose. 196 tests de backend (`cd backend && ./mvnw test`).
 - Autenticación con BBVA implementada y funcionando: cuenta de servicio de
   Google, token sin delegar, cabeceras `Authorization`, `Requestor` y
   `X-BBVA-AppId` (= `client_id` del JSON).
-- **Conexión con DEV:** el 13/11/2026 se descargó el primer catálogo real
-  (`countries`). Los otros 7 responden 403 por permisos que tiene que dar BBVA.
+- **Conexión con DEV:** desde el 23/11/2026 se descargan los 8 catálogos
+  (cuatro llegan vacíos en DEV) y los dos feedback pasan la autorización. Las
+  subidas están sin probar.
 - El conector corre en **solo lectura** (`AR_UPLOADS_ENABLED=false`): descarga
   pero no sube nada. La base de datos local solo tiene personas de prueba
   (Ana, Bruno, Carla); no activar los envíos hasta sustituirlas por gente real.
@@ -35,7 +36,8 @@ Compose. 196 tests de backend (`cd backend && ./mvnw test`).
 
 De BBVA (ver la lista completa en `respuestas-bbva-2026-09.md`):
 
-1. Permisos en DEV para el resto de catálogos, la subida y el feedback.
+1. Confirmar el permiso de subida en DEV y si es normal que cuatro catálogos
+   lleguen vacíos.
 2. Saber si AU y PRO cambian de dominio como DEV, y sus credenciales.
 3. Fecha a partir de la cual se deja de imputar a mano (cada envío
    sobrescribe el día completo de la persona).

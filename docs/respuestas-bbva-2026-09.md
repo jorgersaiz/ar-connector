@@ -132,6 +132,7 @@ petición de token, las tres cabeceras en descargas y subidas, y subida
 | 08/10/2026 | Primera llamada, Requestor `@bbva.com` | 401 "... is not a valid user": en DEV el Requestor tiene que ser `@dev.bbva.com` |
 | 03/11/2026 | Requestor `@dev.bbva.com` | 401 "The requestor application cannot be retrieved" en los 8 catálogos (igual con `X-BBVA-AppId` = `client_id` o = `project_id`): faltaba configuración en BBVA |
 | 13/11/2026 | BBVA cambia el dominio de DEV a `dev-gag.bbva.com` | **`countries` se descarga** (5 países). Los otros 7 catálogos: 403 "You don't have permissions to invoke this service" |
+| 23/11/2026 | GCP corrige los contratos de acceso | **Los 8 catálogos se descargan** (200): `task_types` 621 filas, `sda_projects` 4.623, `jira_issues` 719, `countries` 5; `jira_issues_historical`, `jira_issue_sda_projects_historical`, `non_sda_projects` y `hidden_task_types` llegan vacíos. `feedback_file` y `user_registration_feedback_file` responden 400 "... feedback file not found" (pasan la autorización: una ruta inexistente da 403). Subidas sin probar (`AR_UPLOADS_ENABLED=false`) |
 
 El `countries` de DEV trae un país con `onhold_margin` vacío; el conector lo
 acepta desde la migración V11 (sin margen, la regla correspondiente no se
@@ -139,8 +140,9 @@ aplica). Los datos de DEV son de prueba: no incluye España.
 
 ## Pendiente de BBVA
 
-1. Permisos en DEV para los otros 7 catálogos (y para subir ficheros y pedir
-   feedback): hoy responden 403.
+1. Catálogos y feedback ya funcionan en DEV (23/11/2026). Falta confirmar
+   que las subidas tienen permiso y si es normal que cuatro catálogos lleguen
+   vacíos en DEV.
 2. Si AU y PRO también cambian de dominio (como DEV a `dev-gag.bbva.com`).
 3. Las credenciales de AU y PRO (una por entorno).
 4. Confirmación de que tienen los datos de Arktic: GPS `0000417143`,
