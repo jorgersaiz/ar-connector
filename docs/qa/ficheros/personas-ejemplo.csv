@@ -1,0 +1,4 @@
+uid;display_name;email;start_date;end_date;geography;gps_code;needs_registration
+XE100004;David Martín;david.martin@arktic.local;2026-11-01;;ES;0000417143;true
+XE100005;Elena Torres;elena.torres@arktic.local;01/11/2026;;;;false
+XE100002;Bruno López;bruno.lopez@arktic.local;2026-11-01;2026-12-31;ES;0000417143;false

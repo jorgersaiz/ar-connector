@@ -1,0 +1,4 @@
+uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note
+XE100002;2026-11-27;;01.01.01;SDATOOL-37040;;;480;
+XE100002;2026-11-30;;01.01;SDATOOL-37040;;;480;Actividad no imputable (nodo intermedio)
+XE100002;2026-11-30;;03.02;;;;1500;Más de 1440 minutos

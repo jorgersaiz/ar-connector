@@ -1,0 +1,5 @@
+uid;date;kind;task_type_code;sda_project_id;jira_issue_id;non_sda_project;minutes;note
+XE100002;2026-11-24;;01.01.01;SDATOOL-37040;;;300;
+XE100002;2026-11-24;;03.01;;;;180;Formación
+XE100002;2026-11-26;NON_WORKING;;;;;;Asuntos propios
+XE100001;2026-11-25;;01.01.02;SDATOOL-37040;ETR-01;;480;Feature de Jira
