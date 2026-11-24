@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, catchError, of, tap } from 'rxjs';
+import { Observable, catchError, of, switchMap, tap } from 'rxjs';
 import { ApiService } from './api.service';
 import { Me } from './models';
 
@@ -27,8 +27,23 @@ export class AuthService {
     );
   }
 
+  /**
+   * Si se entra directamente en /login con un navegador sin cookies, todavía no
+   * hay cookie XSRF-TOKEN y el POST del login daría 403. Cualquier respuesta del
+   * backend la emite (aunque sea el 401 de /auth/me), así que se pide antes.
+   */
   login(email: string, password: string): Observable<Me> {
-    return this.api.login(email, password).pipe(tap((me) => this.me.set(me)));
+    const csrfReady = this.hasCsrfCookie()
+      ? of(null)
+      : this.api.me().pipe(catchError(() => of(null)));
+    return csrfReady.pipe(
+      switchMap(() => this.api.login(email, password)),
+      tap((me) => this.me.set(me)),
+    );
+  }
+
+  private hasCsrfCookie(): boolean {
+    return document.cookie.split(';').some((c) => c.trim().startsWith('XSRF-TOKEN='));
   }
 
   logout(): void {
