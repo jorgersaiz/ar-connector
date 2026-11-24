@@ -25,9 +25,10 @@ Compose. 196 tests de backend (`cd backend && ./mvnw test`).
 - Autenticación con BBVA implementada y funcionando: cuenta de servicio de
   Google, token sin delegar, cabeceras `Authorization`, `Requestor` y
   `X-BBVA-AppId` (= `client_id` del JSON).
-- **Conexión con DEV:** desde el 23/11/2026 se descargan los 8 catálogos
-  (cuatro llegan vacíos en DEV) y los dos feedback pasan la autorización. Las
-  subidas están sin probar.
+- **Conexión con DEV:** desde el 24/11/2026 funcionan todos los endpoints: los
+  8 catálogos (los históricos y `hidden_task_types` llegan vacíos en DEV), los
+  dos feedback y las dos subidas (probadas con datos ficticios, fuera del
+  conector).
 - El conector corre en **solo lectura** (`AR_UPLOADS_ENABLED=false`): descarga
   pero no sube nada. La base de datos local solo tiene personas de prueba
   (Ana, Bruno, Carla); no activar los envíos hasta sustituirlas por gente real.
@@ -36,8 +37,8 @@ Compose. 196 tests de backend (`cd backend && ./mvnw test`).
 
 De BBVA (ver la lista completa en `respuestas-bbva-2026-09.md`):
 
-1. Confirmar el permiso de subida en DEV y si es normal que cuatro catálogos
-   lleguen vacíos.
+1. El uid de DEV de un usuario válido de Arktic, para probar un registro real
+   (y que `hidden_task_types` deje de llegar vacío).
 2. Saber si AU y PRO cambian de dominio como DEV, y sus credenciales.
 3. Fecha a partir de la cual se deja de imputar a mano (cada envío
    sobrescribe el día completo de la persona).

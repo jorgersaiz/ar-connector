@@ -133,6 +133,7 @@ petición de token, las tres cabeceras en descargas y subidas, y subida
 | 03/11/2026 | Requestor `@dev.bbva.com` | 401 "The requestor application cannot be retrieved" en los 8 catálogos (igual con `X-BBVA-AppId` = `client_id` o = `project_id`): faltaba configuración en BBVA |
 | 13/11/2026 | BBVA cambia el dominio de DEV a `dev-gag.bbva.com` | **`countries` se descarga** (5 países). Los otros 7 catálogos: 403 "You don't have permissions to invoke this service" |
 | 23/11/2026 | GCP corrige los contratos de acceso | **Los 8 catálogos se descargan** (200): `task_types` 621 filas, `sda_projects` 4.623, `jira_issues` 719, `countries` 5; `jira_issues_historical`, `jira_issue_sda_projects_historical`, `non_sda_projects` y `hidden_task_types` llegan vacíos. `feedback_file` y `user_registration_feedback_file` responden 400 "... feedback file not found" (pasan la autorización: una ruta inexistente da 403). Subidas sin probar (`AR_UPLOADS_ENABLED=false`) |
+| 24/11/2026 | GCP da permiso a las subidas; BBVA carga 4 proyectos de prueba en `non_sda_projects` | `non_sda_projects` trae 4 filas (`TEST-0001` a `TEST-0004`). **Las dos subidas responden 200 `{"result":"OK"}`**, probadas fuera del conector con datos ficticios: registro con el uid `XETEST01` y una línea de día no imputable del 23/11 de esa persona. El feedback de los dos se podrá pedir el 25/11; se espera rechazo (`APV_UR_01` en el registro). `hidden_task_types` seguirá vacío hasta registrar un usuario válido: falta su uid de DEV |
 
 El `countries` de DEV trae un país con `onhold_margin` vacío; el conector lo
 acepta desde la migración V11 (sin margen, la regla correspondiente no se
@@ -140,9 +141,10 @@ aplica). Los datos de DEV son de prueba: no incluye España.
 
 ## Pendiente de BBVA
 
-1. Catálogos y feedback ya funcionan en DEV (23/11/2026). Falta confirmar
-   que las subidas tienen permiso y si es normal que cuatro catálogos lleguen
-   vacíos en DEV.
+1. Todos los endpoints funcionan en DEV (24/11/2026). Falta el uid de DEV de
+   un usuario válido de Arktic para hacer un registro real (sin él,
+   `hidden_task_types` sigue vacío). Los catálogos históricos están vacíos en
+   DEV y BBVA no los considera necesarios para imputar.
 2. Si AU y PRO también cambian de dominio (como DEV a `dev-gag.bbva.com`).
 3. Las credenciales de AU y PRO (una por entorno).
 4. Confirmación de que tienen los datos de Arktic: GPS `0000417143`,
